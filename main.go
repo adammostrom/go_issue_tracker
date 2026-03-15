@@ -5,21 +5,50 @@ import (
 	// For printing messages
 	// For printing messages
 
-	"issuetracker/internal/db"
-	"issuetracker/internal/handlers"
+	//"issuetracker/internal/db"
+	handlers "issuetracker/internal/backend_logic"
+	db "issuetracker/internal/database_layer"
+	"issuetracker/internal/models"
+	"issuetracker/internal/services"
 	"log"
 	"net/http"
 
 	_ "github.com/lib/pq" // Import pq for PostgreSQL driver
 )
 
+// Main does only one job: start the server and connect routes to handlers.
+// Only does initialization: database connection, routing, and starting the HTTP server.
+// Doesnt do actual “business work”.
 func main() {
 
 	// 2026-03-12 -> CREATE NEW ISSUE:
 
 	s := handlers.IssueEndpoint{}
 
-	s.CreateNewIssue("First Test", "just testing")
+	// TEMPORARY STORAGE
+	var issues []models.Issue
+	var nextID = 1
+
+	var issue = s.CreateNewIssue("First Test", "just testing", int64(nextID))
+
+	issues = append(issues, issue)
+
+	service := services.IssueService{
+		Issues: &issues,
+	}
+
+	http.HandleFunc("/issues", service.MainRouter)
+
+	log.Println("Connected successfully — server starting...")
+
+	// Serve the HTML frontend
+	http.Handle("/", http.FileServer(http.Dir("./static")))
+
+	// Keep server running on port 8080
+	log.Println("Server running at http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	// DATABASE
 
 	/*
 		host=/var/run/postgresql forces a Unix socket.
@@ -36,18 +65,9 @@ func main() {
 	}
 	defer db_connect.Close()
 
-	log.Println("Connected successfully — server starting...")
-
 	// Add functionality for frontend later.
 	//getAllDevices(db_connect)
 	//getAllDeviceTypes((db_connect))
-
-	// Serve the HTML frontend
-	http.Handle("/", http.FileServer(http.Dir("./static")))
-
-	// Keep server running on port 8080
-	log.Println("Server running at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 /* func getAllDevices(db_connect *sql.DB) {

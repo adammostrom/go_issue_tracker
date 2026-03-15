@@ -1,5 +1,10 @@
 package db
 
+// THIS PACKAGE (FILE) ONLY TALKS TO THE DATABASE, NOTHING ELSE, NO LOGIC
+// That’s all it should do. No HTTP logic, no request parsing,
+// Only knows SQL and persistence.
+// Exposes methods like AddIssue(issue) or GetAllIssues().
+
 import (
 	"database/sql"
 	"issuetracker/internal/models"
@@ -19,6 +24,7 @@ Go doesn’t have classes. This is how you “build” objects.
 - Return type: pointer to IssueDBConn
 */
 
+// Its job is only one thing: talk to SQL.
 func NewIssueConn(db *sql.DB) *IssueDBConn {
 	return &IssueDBConn{db: db} // exports the reference to the created instance
 }
@@ -36,6 +42,8 @@ method GetAll (capital G = exported)
 returns []models.Device -> slice of Device structs
 */
 
+// This struct wraps the database connection so that methods like this can exist:
+// “Given an Issue struct, store it in the database.”
 func (s *IssueDBConn) GetAllIssues() ([]models.Issue, error) {
 	rows, err := s.db.Query("SELECT * FROM Issues") // Come back to update based on sql db
 	if err != nil {
@@ -57,7 +65,7 @@ func (s *IssueDBConn) GetAllIssues() ([]models.Issue, error) {
 
 	for rows.Next() {
 		var i models.Issue
-		rows.Scan(&i.Internal_id, &i.Name, &i.Description, &i.Log, &i.Resolved) // Scans the database (sql tables) for the values. Internal ID should only be between the database and the backend logic, not the user.
+		rows.Scan(&i.Internal_id, &i.Title, &i.Description, &i.Log, &i.Active) // Scans the database (sql tables) for the values. Internal ID should only be between the database and the backend logic, not the user.
 		issues = append(issues, i)
 	}
 	return issues, nil
@@ -68,7 +76,7 @@ func (s *IssueDBConn) GetAllIssues() ([]models.Issue, error) {
 func (s *IssueDBConn) AddIssue(issue models.Issue) error {
 	//TODO:  Generate internal ID
 
-	_, err := s.db.Exec("INSERT INTO Issues(internal_id, name, description, log, resolved) VALUES ($1, $2, $3)", issue.Name, issue.Description, issue.Log, issue.Resolved)
+	_, err := s.db.Exec("INSERT INTO Issues(internal_id, name, description, log, resolved) VALUES ($1, $2, $3)", issue.Title, issue.Description, issue.Log, issue.Active)
 	return err
 }
 
@@ -93,7 +101,7 @@ func (s *IssueDBConn) GetIssueByID(id int) (models.Issue, error) {
 	var issue models.Issue
 
 	err := s.db.QueryRow(
-		"SELECT * FROM Issues WHERE internal_id = $1", id).Scan(&issue.Internal_id, &issue.Name, &issue.Description, &issue.Log, &issue.Resolved)
+		"SELECT * FROM Issues WHERE internal_id = $1", id).Scan(&issue.Internal_id, &issue.Title, &issue.Description, &issue.Log, &issue.Active)
 
 	if err != nil {
 		return models.Issue{}, err // return empty issue, interpret it higher up (empty issue = no issue found)

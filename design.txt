@@ -1,0 +1,15 @@
+BASIC DESIGN
+
+Client (curl/postman/browser)
+       |
+       v
+Handler (HTTP)
+       |  <-- receives JSON, parses it
+       v
+Business logic (CreateNewIssue)
+       |  <-- creates Issue struct, maybe adds a timestamp/log
+       v
+DB layer (AddIssue)
+       |  <-- inserts struct into database
+       v
+Handler (HTTP)  <-- sends response back to client
