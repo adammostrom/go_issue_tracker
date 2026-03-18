@@ -1,0 +1,30 @@
+
+
+
+
+
+parts := request.split("/")
+
+if parts < 3
+    if parts [1] == "issues"
+        return getAllIssues()
+    else 
+        return bad request 
+else if parts < 4
+
+
+
+"/issues/" becomes ["/" "issues" "/"], 
+len = 3
+
+switch len(parts):
+    case 1: 
+        bad request 
+    case 2: 
+        if parts [1] == "issues"
+            return getAllIssues()
+    case 3: 
+        if parts[2] == id number
+            return getIssuebyID()
+        else
+            bad request 

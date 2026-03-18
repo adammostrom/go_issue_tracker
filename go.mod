@@ -2,4 +2,4 @@ module issuetracker
 
 go 1.22.0
 
-require github.com/lib/pq v1.11.2
+require github.com/mattn/go-sqlite3 v1.14.37

@@ -17,3 +17,19 @@ type LogEntry struct {
 	Timestamp string // Change to time package later
 	Entry     string
 }
+
+// Issuerequest currently hides the log
+type CreateIssueRequest struct {
+	ExternalRef int64  `json:"external_ref"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+// For returning an issue request
+type IssueResponse struct {
+	InternalID  int64  `json:"internal_id"`
+	ExternalRef int64  `json:"external_ref"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Active      bool   `json:"active"`
+}
