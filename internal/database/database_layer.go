@@ -115,3 +115,14 @@ func (s *DatabaseConnection) GetIssueByID(id int) (models.Issue, error) {
 
 	return issue, nil
 }
+
+func (s *DatabaseConnection) UpdateIssue(fields []interface{}, query string, id int) error {
+
+	res, err := s.db.Exec(query, fields...)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// MOSTLY FOR DEBUGGING
+	fmt.Printf("res: %v\n", res)
+	return err
+}

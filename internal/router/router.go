@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"issuetracker/internal/models"
 	services "issuetracker/internal/services"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -34,11 +35,10 @@ func NewRouter(s *services.IssueService) *Router {
 	}
 }
 
-func (s *Router) MainDelegator(w http.ResponseWriter, r *http.Request) {
+func (s *Router) AllRouting(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 
-	length := len(parts)
-	switch length {
+	switch len(parts) {
 	case 1:
 		http.Error(w, "bad request", http.StatusBadRequest)
 	case 2:
@@ -55,40 +55,30 @@ func (s *Router) MainDelegator(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("Tried to fetch single issue: %s", r.URL.Path)
 			return
 		}
+		if r.Method == http.MethodDelete {
+			s.deleteSingleIssueHandler(w, r)
+			fmt.Printf("Tried to delete a single issue: %s", r.URL.Path)
+			return
+		}
+		if r.Method == http.MethodPatch {
+			s.updateSingleIssueHandler(w, r)
+			fmt.Printf("Tried to update a single issue: %s", r.URL.Path)
+		}
 	default:
 		http.Error(w, "method now allowed", http.StatusMethodNotAllowed)
 	}
 }
 
-// Receives a http request from mux, parses and handles the request.
-func (s *Router) AllRouting(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method == http.MethodGet {
-		s.getIssueshandler(w, r)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		s.createIssueHandler(w, r)
-		return
-	}
-
-	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-}
-
+// Gets a single issue from the database.
 func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
-	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) < 3 {
-		http.Error(w, "missing id", http.StatusBadRequest)
-		return
-	}
-	id, err := strconv.ParseInt(parts[2], 10, 64)
-	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
+
+	id := extractIdFromUrlPath(r.URL.Path)
+	if id < 0 {
+		http.Error(w, "bad id ", http.StatusBadRequest)
 		return
 	}
 
-	issue := s.issueService.GetSingleIssue(int(id))
+	issue, err := s.issueService.GetSingleIssue(int(id))
 	if err != nil {
 		http.Error(w, "not found", http.StatusBadRequest)
 		return
@@ -99,9 +89,11 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Router) getIssueshandler(w http.ResponseWriter, r *http.Request) {
-
-	// TODO: Ask the database for the data, DONT pass any HTTP stuff (w, r)
-
+	/*
+		query := r.URL.Query()
+		resolved := query.Get("resolved")
+		search := query.Get("search")
+	*/
 	issues := s.issueService.GetAllIssues()
 
 	var response []models.IssueResponse
@@ -133,6 +125,35 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+func (s *Router) deleteSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
+	id := extractIdFromUrlPath(r.URL.Path)
+	if id < 0 {
+		http.Error(w, "bad id ", http.StatusBadRequest)
+	}
+
+	//TODO
+}
+
+func (s *Router) updateSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
+	id := extractIdFromUrlPath(r.URL.Path)
+	if id < 0 {
+		http.Error(w, "bad id ", http.StatusBadRequest)
+	}
+	var upd_req models.UpdateIssueRequest
+
+	err := json.NewDecoder(r.Body).Decode(&upd_req)
+	if err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	updated, err := s.issueService.PatchIssue(int(id), upd_req)
+	json.NewEncoder(w).Encode(updated)
+
+}
+
+// Helpers
+
 func issueToIssueResponse(issue models.Issue) models.IssueResponse {
 	resp := models.IssueResponse{
 		InternalID:  issue.Internal_id,
@@ -142,4 +163,15 @@ func issueToIssueResponse(issue models.Issue) models.IssueResponse {
 		Active:      issue.Active,
 	}
 	return resp
+}
+
+func extractIdFromUrlPath(path string) int64 {
+	parts := strings.Split(path, "/")
+
+	id, err := strconv.ParseInt(parts[2], 10, 64)
+	if err != nil {
+		log.Fatal(err)
+		return -1
+	}
+	return id
 }

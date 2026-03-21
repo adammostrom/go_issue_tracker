@@ -33,3 +33,11 @@ type IssueResponse struct {
 	Description string `json:"description"`
 	Active      bool   `json:"active"`
 }
+
+// For updating (changing) a single issue. Nil values = field not sent in request, non-nil = fields sent in request, hence they were modified
+type UpdateIssueRequest struct {
+	ExternalRef *int64  `json:"external_ref"`
+	Title       *string `json:"title"`
+	Description *string `json:"description"`
+	Active      *bool   `json:"active"`
+}

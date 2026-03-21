@@ -14,6 +14,7 @@ import (
 	"issuetracker/internal/database"
 	"issuetracker/internal/models"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -61,10 +62,50 @@ func (s *IssueService) GetAllIssues() []models.Issue {
 	return issues
 }
 
-func (s *IssueService) GetSingleIssue(id int) models.Issue {
+func (s *IssueService) GetSingleIssue(id int) (models.Issue, error) {
 	issue, err := s.db_layer.GetIssueByID(id)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return issue
+	return issue, nil
+}
+
+func (s *IssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) (models.Issue, error) {
+
+	query := "UPDATE issues SET "
+	updated_fields := []interface{}{}
+	i := 1
+	if upd_req.Title != nil {
+		updated_fields = append(updated_fields, *upd_req.Title)
+		query += fmt.Sprintf("title=$%d", i)
+		i++
+	}
+	if upd_req.ExternalRef != nil {
+		updated_fields = append(updated_fields, *upd_req.ExternalRef)
+		query += fmt.Sprintf("external_ref=$%d", i)
+		i++
+	}
+	if upd_req.Description != nil {
+		updated_fields = append(updated_fields, *upd_req.Description)
+		query += fmt.Sprintf("description=$%d", i)
+		i++
+	}
+	if upd_req.Active != nil {
+		updated_fields = append(updated_fields, *upd_req.Active)
+		query += fmt.Sprintf("active=$%d", i)
+		i++
+	}
+
+	query = strings.TrimSuffix(query, ",")
+	query += fmt.Sprintf(" WHERE external_ref=%d", id)
+
+	s.db_layer.UpdateIssue(updated_fields, query, id)
+
+	issue, err := s.GetSingleIssue(id)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return issue, nil
 }

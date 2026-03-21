@@ -36,8 +36,8 @@ func main() {
 	}
 
 	// Delegates all HTTP requests to /issues* to the IssuesHandler
-	mux.HandleFunc("/issues", r.MainDelegator)  // for /issues exact (list, create)
-	mux.HandleFunc("/issues/", r.MainDelegator) // for /issues/{id} (single issue)
+	mux.HandleFunc("/issues", r.AllRouting)  // for /issues exact (list, create)
+	mux.HandleFunc("/issues/", r.AllRouting) // for /issues/{id} (single issue)
 
 	log.Println("Connected successfully — server starting...")
 
