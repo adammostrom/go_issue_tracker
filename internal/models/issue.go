@@ -5,8 +5,8 @@ package models
 // THe internal ID is autoassigned but user can still see it for referals
 
 type Issue struct {
-	Internal_id  int64 // postgres generated
-	External_Ref int64 // Unique ID put by user
+	Internal_ID  int64  // postgres generated
+	External_Ref string // Unique ID put by user
 	Title        string
 	Description  string
 	Log          []LogEntry
@@ -20,24 +20,24 @@ type LogEntry struct {
 
 // Issuerequest currently hides the log
 type CreateIssueRequest struct {
-	ExternalRef int64  `json:"external_ref"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	External_Ref string `json:"external_ref"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
 }
 
 // For returning an issue request
 type IssueResponse struct {
-	InternalID  int64  `json:"internal_id"`
-	ExternalRef int64  `json:"external_ref"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Active      bool   `json:"active"`
+	Internal_ID  int64  `json:"internal_id"`
+	External_Ref string `json:"external_ref"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	Active       bool   `json:"active"`
 }
 
 // For updating (changing) a single issue. Nil values = field not sent in request, non-nil = fields sent in request, hence they were modified
 type UpdateIssueRequest struct {
-	ExternalRef *int64  `json:"external_ref"`
-	Title       *string `json:"title"`
-	Description *string `json:"description"`
-	Active      *bool   `json:"active"`
+	External_Ref *string `json:"external_ref"`
+	Title        *string `json:"title"`
+	Description  *string `json:"description"`
+	Active       *bool   `json:"active"`
 }

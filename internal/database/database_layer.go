@@ -7,6 +7,7 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"issuetracker/internal/models"
 	"log"
@@ -59,9 +60,9 @@ func (s *DatabaseConnection) QueryAllIssues() ([]models.Issue, error) {
 
 	for rows.Next() {
 		var i models.Issue
-		rows.Scan(&i.Internal_id, &i.Title, &i.Description, &i.Active) // Skip log for now
+		rows.Scan(&i.Internal_ID, &i.External_Ref, &i.Title, &i.Description, &i.Active) // Skip log for now
 		issues = append(issues, i)
-		fmt.Printf("Issue found: %d - %s - %s \n", i.Internal_id, i.Title, i.Active)
+		fmt.Printf("i: %v\n", i)
 	}
 	return issues, nil
 }
@@ -70,8 +71,8 @@ func (s *DatabaseConnection) QueryAllIssues() ([]models.Issue, error) {
 // Should all fields be required? Or just the name of the issue?
 func (s *DatabaseConnection) AddIssue(issue models.Issue) error {
 
-	stmt := `INSERT INTO Issues(title, description, active) VALUES (?, ?, ?)`
-	res, err := s.db.Exec(stmt, issue.Title, issue.Description, 1)
+	stmt := `INSERT INTO Issues(title, external_ref, description, active) VALUES (?, ?, ?, ?)`
+	res, err := s.db.Exec(stmt, issue.Title, issue.External_Ref, issue.Description, 1)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -81,9 +82,28 @@ func (s *DatabaseConnection) AddIssue(issue models.Issue) error {
 		log.Fatal(err)
 	}
 
+	log_err := s.AddLogEntry(id, issue.Log[0])
+	if log_err != nil {
+		log.Fatal(log_err)
+	}
+
 	// MOSTLY FOR DEBUGGING
 	fmt.Printf("Inserted value - id: %d, title: %s, description: %s, active %s \n", id, issue.Title, issue.Description, issue.Active)
+
 	return err
+}
+
+func (s *DatabaseConnection) AddLogEntry(id int64, logEntry models.LogEntry) error {
+	// Insert into logs
+	log_stmt := `INSERT INTO Logs(issue_id, timestamp, entry) VALUES (?, ?, ?)`
+	res, err := s.db.Exec(log_stmt, id, logEntry.Timestamp, logEntry.Entry)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(res.RowsAffected())
+
+	return err
+
 }
 
 // Returns device based on serial number
@@ -102,23 +122,28 @@ It’s a tiny, elegant shortcut for “exactly one row expected.”
 
 
 */
-func (s *DatabaseConnection) GetIssueByID(id int) (models.Issue, error) {
+func (s *DatabaseConnection) GetIssueByID(id int) (*models.Issue, error) {
 
-	var issue models.Issue
+	// For pointer referencing, initiate the struct first, otherwise pointer is nil
+	issue := &models.Issue{}
 
+	// TODO: Dont return everything (*), create a VIEW in SQL and return from that instead
 	err := s.db.QueryRow(
-		"SELECT * FROM Issues WHERE id = $1", id).Scan(&issue.Internal_id, &issue.Title, &issue.Description, &issue.Active)
+		"SELECT * FROM Issues WHERE id = $1", id).Scan(&issue.Internal_ID, &issue.External_Ref, &issue.Title, &issue.Description, &issue.Active)
 
 	if err != nil {
-		return models.Issue{}, err // return empty issue, interpret it higher up (empty issue = no issue found)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("Not found")
+		}
+		return nil, err
 	}
-
 	return issue, nil
 }
 
 func (s *DatabaseConnection) UpdateIssue(fields []interface{}, query string, id int) error {
 
 	res, err := s.db.Exec(query, fields...)
+
 	if err != nil {
 		log.Fatal(err)
 	}

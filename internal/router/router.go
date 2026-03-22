@@ -52,17 +52,16 @@ func (s *Router) AllRouting(w http.ResponseWriter, r *http.Request) {
 	case 3:
 		if r.Method == http.MethodGet {
 			s.getSingleIssueHandler(w, r)
-			fmt.Printf("Tried to fetch single issue: %s", r.URL.Path)
 			return
 		}
 		if r.Method == http.MethodDelete {
+			fmt.Printf("Tried to delete a single issue: %s\n", r.URL.Path)
 			s.deleteSingleIssueHandler(w, r)
-			fmt.Printf("Tried to delete a single issue: %s", r.URL.Path)
 			return
 		}
 		if r.Method == http.MethodPatch {
+			fmt.Printf("Tried to update a single issue: %s\n", r.URL.Path)
 			s.updateSingleIssueHandler(w, r)
-			fmt.Printf("Tried to update a single issue: %s", r.URL.Path)
 		}
 	default:
 		http.Error(w, "method now allowed", http.StatusMethodNotAllowed)
@@ -84,8 +83,9 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := issueToIssueResponse(issue)
+	resp := issueToIssueResponse(*issue)
 	json.NewEncoder(w).Encode(resp)
+	fmt.Printf("*** TESTING - RETURNED ***\n ID: %d\n TITLE: %s\n EXTERNAL REF: %s\n", resp.Internal_ID, resp.Title, resp.External_Ref)
 }
 
 func (s *Router) getIssueshandler(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +116,7 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issue := s.issueService.CreateNewIssue(req.ExternalRef, req.Title, req.Description)
+	issue := s.issueService.CreateNewIssue(req.External_Ref, req.Title, req.Description)
 
 	resp := issueToIssueResponse(issue)
 
@@ -141,6 +141,7 @@ func (s *Router) updateSingleIssueHandler(w http.ResponseWriter, r *http.Request
 	}
 	var upd_req models.UpdateIssueRequest
 
+	fmt.Printf("r.Body: %v\n", r.Body)
 	err := json.NewDecoder(r.Body).Decode(&upd_req)
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -148,7 +149,8 @@ func (s *Router) updateSingleIssueHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	updated, err := s.issueService.PatchIssue(int(id), upd_req)
-	json.NewEncoder(w).Encode(updated)
+	json.NewEncoder(w).Encode(issueToIssueResponse(*updated))
+	fmt.Printf("*** TESTING - PATCHED ***\n ID: %d\n TITLE: %s\n EXTERNAL REF: %s\n", updated.Internal_ID, updated.Title, updated.External_Ref)
 
 }
 
@@ -156,11 +158,11 @@ func (s *Router) updateSingleIssueHandler(w http.ResponseWriter, r *http.Request
 
 func issueToIssueResponse(issue models.Issue) models.IssueResponse {
 	resp := models.IssueResponse{
-		InternalID:  issue.Internal_id,
-		ExternalRef: issue.External_Ref,
-		Title:       issue.Title,
-		Description: issue.Description,
-		Active:      issue.Active,
+		Internal_ID:  issue.Internal_ID,
+		External_Ref: issue.External_Ref,
+		Title:        issue.Title,
+		Description:  issue.Description,
+		Active:       issue.Active,
 	}
 	return resp
 }

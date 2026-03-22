@@ -45,7 +45,7 @@ func InitSchema(db *sql.DB) error {
 }
 
 func InitDB() *sql.DB {
-	fmt.Println("HELLO")
+
 	db, err := NewDB()
 	panic_mode(err)
 

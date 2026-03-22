@@ -32,7 +32,7 @@ func NewIssueService(db_layer *database.DatabaseConnection) *IssueService {
 
 // TODO: Think about how to handle duplicate issues, if every issue gets a unique number, there will never be duplicates
 
-func (s *IssueService) CreateNewIssue(id int64, title string, desc string) models.Issue {
+func (s *IssueService) CreateNewIssue(external_ref string, title string, desc string) models.Issue {
 
 	timestamp := time.Now().Format("2006-01-02-15:04")
 	var log = []models.LogEntry{
@@ -41,11 +41,11 @@ func (s *IssueService) CreateNewIssue(id int64, title string, desc string) model
 
 	// Internal ID generated at db insert
 	issue := models.Issue{
-		Internal_id: id,
-		Title:       title,
-		Description: desc,
-		Log:         log,
-		Active:      true,
+		External_Ref: external_ref,
+		Title:        title,
+		Description:  desc,
+		Log:          log,
+		Active:       true,
 	}
 
 	s.db_layer.AddIssue(issue)
@@ -62,42 +62,46 @@ func (s *IssueService) GetAllIssues() []models.Issue {
 	return issues
 }
 
-func (s *IssueService) GetSingleIssue(id int) (models.Issue, error) {
+func (s *IssueService) GetSingleIssue(id int) (*models.Issue, error) {
 	issue, err := s.db_layer.GetIssueByID(id)
+
+	// If no issue is found, db returns an empty issue
 	if err != nil {
 		log.Fatal(err)
 	}
 	return issue, nil
 }
 
-func (s *IssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) (models.Issue, error) {
+func (s *IssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) (*models.Issue, error) {
 
 	query := "UPDATE issues SET "
 	updated_fields := []interface{}{}
 	i := 1
 	if upd_req.Title != nil {
 		updated_fields = append(updated_fields, *upd_req.Title)
-		query += fmt.Sprintf("title=$%d", i)
+		query += fmt.Sprintf("title=$%d,", i)
 		i++
 	}
-	if upd_req.ExternalRef != nil {
-		updated_fields = append(updated_fields, *upd_req.ExternalRef)
-		query += fmt.Sprintf("external_ref=$%d", i)
+	if upd_req.External_Ref != nil {
+		updated_fields = append(updated_fields, *upd_req.External_Ref)
+		query += fmt.Sprintf("external_ref=$%d,", i)
 		i++
 	}
 	if upd_req.Description != nil {
 		updated_fields = append(updated_fields, *upd_req.Description)
-		query += fmt.Sprintf("description=$%d", i)
+		query += fmt.Sprintf("description=$%d,", i)
 		i++
 	}
 	if upd_req.Active != nil {
 		updated_fields = append(updated_fields, *upd_req.Active)
-		query += fmt.Sprintf("active=$%d", i)
+		query += fmt.Sprintf("active=$%d,", i)
 		i++
 	}
 
 	query = strings.TrimSuffix(query, ",")
-	query += fmt.Sprintf(" WHERE external_ref=%d", id)
+	query += fmt.Sprintf(" WHERE id=%d", id)
+
+	fmt.Printf("Sent %s to db with fields: \n %s\n", query, updated_fields)
 
 	s.db_layer.UpdateIssue(updated_fields, query, id)
 
