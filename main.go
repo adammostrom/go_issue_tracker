@@ -13,7 +13,6 @@ import (
 
 // Main does only one job: start the server and connect routes to handlers.
 // Only does initialization: database connection, routing, and starting the HTTP server.
-// Doesnt do actual “business work”.
 func main() {
 
 	// Initate and load the database schema
@@ -27,6 +26,7 @@ func main() {
 
 	// Create a router to delegate requests to the server
 	r := router.NewRouter(issueService)
+
 	// set up the HTTP server
 	mux := http.NewServeMux()
 
@@ -48,7 +48,4 @@ func main() {
 	log.Println("Server running at http://localhost:8080")
 	log.Fatal(server.ListenAndServe())
 
-	// Add functionality for frontend later.
-	//getAllDevices(db_connect)
-	//getAllDeviceTypes((db_connect))
 }
