@@ -47,7 +47,7 @@ returns []models.Device -> slice of Device structs
 
 // This struct wraps the database connection so that methods like this can exist:
 // “Given an Issue struct, store it in the database.”
-func (s *DatabaseConnection) QueryAllIssues() ([]models.Issue, error) {
+func (s *DatabaseConnection) GetIssues() ([]models.Issue, error) {
 	rows, err := s.db.Query("SELECT * FROM Issues")
 	if err != nil {
 		panic_mode(err)
@@ -69,7 +69,8 @@ func (s *DatabaseConnection) QueryAllIssues() ([]models.Issue, error) {
 
 // Add an issue
 // Should all fields be required? Or just the name of the issue?
-func (s *DatabaseConnection) AddIssue(issue models.Issue) error {
+// 2026-03-24: Returns the pointer only so the functions are the same as in service and can be mocked
+func (s *DatabaseConnection) CreateIssue(issue *models.Issue) (*models.Issue, error) {
 
 	stmt := `INSERT INTO Issues(title, external_ref, description, active) VALUES (?, ?, ?, ?)`
 	res, err := s.db.Exec(stmt, issue.Title, issue.External_Ref, issue.Description, 1)
@@ -82,18 +83,20 @@ func (s *DatabaseConnection) AddIssue(issue models.Issue) error {
 		log.Fatal(err)
 	}
 
-	log_err := s.AddLogEntry(id, issue.Log[0])
+	issue.Internal_ID = id
+
+	log_err := s.CreateLogEntry(id, issue.Log[0])
 	if log_err != nil {
 		log.Fatal(log_err)
 	}
 
 	// MOSTLY FOR DEBUGGING
-	fmt.Printf("Inserted value - id: %d, title: %s, description: %s, active %s \n", id, issue.Title, issue.Description, issue.Active)
+	fmt.Printf("Inserted value - id: %d, title: %s, description: %s, active %s \n", id, issue.Title, issue.Description, fmt.Sprintf("%t", issue.Active))
 
-	return err
+	return issue, err
 }
 
-func (s *DatabaseConnection) AddLogEntry(id int64, logEntry models.LogEntry) error {
+func (s *DatabaseConnection) CreateLogEntry(id int64, logEntry models.LogEntry) error {
 	// Insert into logs
 	log_stmt := `INSERT INTO Logs(issue_id, timestamp, entry) VALUES (?, ?, ?)`
 	res, err := s.db.Exec(log_stmt, id, logEntry.Timestamp, logEntry.Entry)
@@ -102,27 +105,12 @@ func (s *DatabaseConnection) AddLogEntry(id int64, logEntry models.LogEntry) err
 	}
 	fmt.Println(res.RowsAffected())
 
+	fmt.Printf("Appended log entry: %s", logEntry.Entry)
 	return err
 
 }
 
-// Returns device based on serial number
-/*
-QueryRow:
-
-does not return rows iterator
-
-does not need Close()
-
-executes immediately
-
-Scan triggers the query
-
-It’s a tiny, elegant shortcut for “exactly one row expected.”
-
-
-*/
-func (s *DatabaseConnection) GetIssueByID(id int) (*models.Issue, error) {
+func (s *DatabaseConnection) GetIssue(id int) (*models.Issue, error) {
 
 	// For pointer referencing, initiate the struct first, otherwise pointer is nil
 	issue := &models.Issue{}
@@ -140,7 +128,7 @@ func (s *DatabaseConnection) GetIssueByID(id int) (*models.Issue, error) {
 	return issue, nil
 }
 
-func (s *DatabaseConnection) UpdateIssue(fields []interface{}, query string, id int) error {
+func (s *DatabaseConnection) ModifyIssue(fields []interface{}, query string, id int) error {
 
 	res, err := s.db.Exec(query, fields...)
 

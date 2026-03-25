@@ -61,7 +61,7 @@ func (s *Router) AllRouting(w http.ResponseWriter, r *http.Request) {
 		}
 		if r.Method == http.MethodPatch {
 			fmt.Printf("Tried to update a single issue: %s\n", r.URL.Path)
-			s.updateSingleIssueHandler(w, r)
+			s.PatchIssueHandler(w, r)
 		}
 	default:
 		http.Error(w, "method now allowed", http.StatusMethodNotAllowed)
@@ -77,7 +77,7 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issue, err := s.issueService.GetSingleIssue(int(id))
+	issue, err := s.issueService.GetIssueByID(int(id))
 	if err != nil {
 		http.Error(w, "not found", http.StatusBadRequest)
 		return
@@ -116,7 +116,11 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issue := s.issueService.CreateNewIssue(req.External_Ref, req.Title, req.Description)
+	issue, err_post := s.issueService.CreateNewIssue(req.External_Ref, req.Title, req.Description)
+
+	if err_post != nil {
+		log.Fatal(err_post)
+	}
 
 	resp := issueToIssueResponse(issue)
 
@@ -134,7 +138,7 @@ func (s *Router) deleteSingleIssueHandler(w http.ResponseWriter, r *http.Request
 	//TODO
 }
 
-func (s *Router) updateSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Router) PatchIssueHandler(w http.ResponseWriter, r *http.Request) {
 	id := extractIdFromUrlPath(r.URL.Path)
 	if id < 0 {
 		http.Error(w, "bad id ", http.StatusBadRequest)
@@ -148,7 +152,16 @@ func (s *Router) updateSingleIssueHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	updated, err := s.issueService.PatchIssue(int(id), upd_req)
+	err_patch := s.issueService.PatchIssue(int(id), upd_req)
+	if err_patch != nil {
+		log.Fatal(err_patch)
+	}
+
+	updated, err_updated := s.issueService.GetIssueByID(int(id))
+	if err_updated != nil {
+		log.Fatal(err_updated)
+	}
+
 	json.NewEncoder(w).Encode(issueToIssueResponse(*updated))
 	fmt.Printf("*** TESTING - PATCHED ***\n ID: %d\n TITLE: %s\n EXTERNAL REF: %s\n", updated.Internal_ID, updated.Title, updated.External_Ref)
 
