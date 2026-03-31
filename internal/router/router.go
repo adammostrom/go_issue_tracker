@@ -4,32 +4,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"issuetracker/internal/models"
-	services "issuetracker/internal/services"
-	"log"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
 /*
-So the handler is responsible for:
-
-reading request body
-
-parsing JSON
-
-calling the service
-
-writing JSON response
-
+The router/handler is responsible for:
+- reading request body
+- parsing JSON
+- calling the service
+- writing JSON response
 */
 
-type Router struct {
-	issueService *services.IssueService
+type IssueServiceInterface interface {
+	CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error)
+	GetAllIssues() ([]models.Issue, error)
+	GetIssueByID(id int) (*models.Issue, error)
+	DeleteIssue(id int) error
+	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
+	GetLogsFromIssue(id int) (*[]models.LogEntry, error)
 }
 
-// Constructor that accepts an issue service and returns a router pointer.
-func NewRouter(s *services.IssueService) *Router {
+type Router struct {
+	issueService IssueServiceInterface
+}
+
+// Constructor that accepts an issue service interface and returns a router pointer.
+func NewRouter(s IssueServiceInterface) *Router {
 	return &Router{
 		issueService: s,
 	}
@@ -43,7 +44,7 @@ func (s *Router) AllRouting(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 	case 2:
 		if r.Method == http.MethodGet {
-			s.getIssueshandler(w, r)
+			s.getIssuesHandler(w, r)
 			return
 		} else if r.Method == http.MethodPost {
 			s.createIssueHandler(w, r)
@@ -55,46 +56,56 @@ func (s *Router) AllRouting(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if r.Method == http.MethodDelete {
-			fmt.Printf("Tried to delete a single issue: %s\n", r.URL.Path)
 			s.deleteSingleIssueHandler(w, r)
 			return
 		}
 		if r.Method == http.MethodPatch {
-			fmt.Printf("Tried to update a single issue: %s\n", r.URL.Path)
 			s.PatchIssueHandler(w, r)
 		}
+	case 4: // /issues/{id}/logs ---> / issues / id / logs
+		if r.Method == http.MethodGet {
+			s.GetLogsFromIssueHandler(w, r)
+			return
+		}
 	default:
-		http.Error(w, "method now allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 // Gets a single issue from the database.
 func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 
-	id := extractIdFromUrlPath(r.URL.Path)
-	if id < 0 {
-		http.Error(w, "bad id ", http.StatusBadRequest)
+	id, err := parseIDfromPath(r.URL.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	issue, err := s.issueService.GetIssueByID(int(id))
 	if err != nil {
-		http.Error(w, "not found", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	resp := issueToIssueResponse(*issue)
+
 	json.NewEncoder(w).Encode(resp)
-	fmt.Printf("*** TESTING - RETURNED ***\n ID: %d\n TITLE: %s\n EXTERNAL REF: %s\n", resp.Internal_ID, resp.Title, resp.External_Ref)
+
+	w.WriteHeader(http.StatusOK)
+
 }
 
-func (s *Router) getIssueshandler(w http.ResponseWriter, r *http.Request) {
+func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		query := r.URL.Query()
 		resolved := query.Get("resolved")
 		search := query.Get("search")
 	*/
-	issues := s.issueService.GetAllIssues()
+	issues, err := s.issueService.GetAllIssues()
+	if err != nil {
+		fmt.Printf(err.Error())
+		http.Error(w, "bad request", http.StatusBadRequest)
+	}
 
 	var response []models.IssueResponse
 
@@ -104,6 +115,8 @@ func (s *Router) getIssueshandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(response) // Fetches the IssueService slice reference (returns the whole slice)
 
+	w.WriteHeader(http.StatusOK)
+
 }
 
 func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
@@ -112,81 +125,87 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	issue, err_post := s.issueService.CreateNewIssue(req.External_Ref, req.Title, req.Description)
+	issue, err_post := s.issueService.CreateNewIssue(req)
 
 	if err_post != nil {
-		log.Fatal(err_post)
+		http.Error(w, err_post.Error(), http.StatusBadRequest)
 	}
 
-	resp := issueToIssueResponse(issue)
+	resp := issueToIssueResponse(*issue)
+
+	json.NewEncoder(w).Encode(resp)
 
 	w.WriteHeader(http.StatusCreated)
 
-	json.NewEncoder(w).Encode(resp)
 }
 
 func (s *Router) deleteSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
-	id := extractIdFromUrlPath(r.URL.Path)
-	if id < 0 {
-		http.Error(w, "bad id ", http.StatusBadRequest)
+	id, err := parseIDfromPath(r.URL.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	//TODO
+	err = s.issueService.DeleteIssue(int(id))
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Router) PatchIssueHandler(w http.ResponseWriter, r *http.Request) {
-	id := extractIdFromUrlPath(r.URL.Path)
-	if id < 0 {
-		http.Error(w, "bad id ", http.StatusBadRequest)
+	id, err := parseIDfromPath(r.URL.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	var upd_req models.UpdateIssueRequest
 
-	fmt.Printf("r.Body: %v\n", r.Body)
-	err := json.NewDecoder(r.Body).Decode(&upd_req)
-	if err != nil {
+	err_decode := json.NewDecoder(r.Body).Decode(&upd_req)
+	if err_decode != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
 	err_patch := s.issueService.PatchIssue(int(id), upd_req)
 	if err_patch != nil {
-		log.Fatal(err_patch)
+		http.Error(w, err_patch.Error(), http.StatusBadRequest)
 	}
 
 	updated, err_updated := s.issueService.GetIssueByID(int(id))
 	if err_updated != nil {
-		log.Fatal(err_updated)
+		http.Error(w, err_updated.Error(), http.StatusBadRequest)
 	}
 
 	json.NewEncoder(w).Encode(issueToIssueResponse(*updated))
 	fmt.Printf("*** TESTING - PATCHED ***\n ID: %d\n TITLE: %s\n EXTERNAL REF: %s\n", updated.Internal_ID, updated.Title, updated.External_Ref)
 
+	w.WriteHeader(http.StatusOK)
 }
 
-// Helpers
+func (s *Router) GetLogsFromIssueHandler(w http.ResponseWriter, r *http.Request) {
 
-func issueToIssueResponse(issue models.Issue) models.IssueResponse {
-	resp := models.IssueResponse{
-		Internal_ID:  issue.Internal_ID,
-		External_Ref: issue.External_Ref,
-		Title:        issue.Title,
-		Description:  issue.Description,
-		Active:       issue.Active,
-	}
-	return resp
-}
-
-func extractIdFromUrlPath(path string) int64 {
-	parts := strings.Split(path, "/")
-
-	id, err := strconv.ParseInt(parts[2], 10, 64)
+	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		log.Fatal(err)
-		return -1
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-	return id
+
+	logs, err := s.issueService.GetLogsFromIssue(int(id))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+	}
+	for log, _ := range logs {
+		json.NewEncoder(w).Encode((log))
+	}
+
+	w.WriteHeader(http.StatusOK)
+
 }

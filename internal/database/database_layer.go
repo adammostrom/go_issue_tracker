@@ -23,7 +23,6 @@ Constructor function
 This is the standard Go constructor pattern.
 Go doesn’t have classes. This is how you “build” objects.
 
-- Capital N → exported (visible outside the package) (in IssueDBConn)
 - Return type: pointer to IssueDBConn
 */
 
@@ -36,21 +35,10 @@ func NewDatabaseConnection(db *sql.DB) *DatabaseConnection {
 // meaning that the sql.DB pointer is reachable via the IssueDBConn db field.
 // & = address, returns pointer of type IssueDBConn
 
-/*
-(s *DeviceStore) = method reciever -> method belongs to DeviceStore.
-"s" is like "this" or "self".
-its a pointer so it operates on the real store
-
-method GetAll (capital G = exported)
-returns []models.Device -> slice of Device structs
-*/
-
-// This struct wraps the database connection so that methods like this can exist:
 // “Given an Issue struct, store it in the database.”
 func (s *DatabaseConnection) GetIssues() ([]models.Issue, error) {
-	rows, err := s.db.Query("SELECT * FROM Issues")
+	rows, err := s.db.Query("SELECT * FROM Issues") // TODO 2026-03-31: Make a view in SQL and select from that one instead
 	if err != nil {
-		panic_mode(err)
 		return nil, err
 	}
 
@@ -75,20 +63,21 @@ func (s *DatabaseConnection) CreateIssue(issue *models.Issue) (*models.Issue, er
 	stmt := `INSERT INTO Issues(title, external_ref, description, active) VALUES (?, ?, ?, ?)`
 	res, err := s.db.Exec(stmt, issue.Title, issue.External_Ref, issue.Description, 1)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-
-	issue.Internal_ID = id
 
 	log_err := s.CreateLogEntry(id, issue.Log[0])
 	if log_err != nil {
-		log.Fatal(log_err)
+		return nil, log_err
 	}
+
+	// Update the issue field "Internal ID" with the returned id from the database
+	issue.Internal_ID = id
 
 	// MOSTLY FOR DEBUGGING
 	fmt.Printf("Inserted value - id: %d, title: %s, description: %s, active %s \n", id, issue.Title, issue.Description, fmt.Sprintf("%t", issue.Active))
@@ -121,7 +110,7 @@ func (s *DatabaseConnection) GetIssue(id int) (*models.Issue, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("Not found")
+			return nil, ErrIssueNotFound(id)
 		}
 		return nil, err
 	}
@@ -133,9 +122,67 @@ func (s *DatabaseConnection) ModifyIssue(fields []interface{}, query string, id 
 	res, err := s.db.Exec(query, fields...)
 
 	if err != nil {
-		log.Fatal(err)
+		return err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return ErrIssueNotFound(id)
 	}
 	// MOSTLY FOR DEBUGGING
 	fmt.Printf("res: %v\n", res)
 	return err
+}
+
+func (s *DatabaseConnection) DeleteIssue(id int) error {
+
+	stmt := `DELETE FROM Issues WHERE id = $1;`
+
+	res, err := s.db.Exec(stmt, id)
+	if err != nil {
+		return err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return ErrIssueNotFound(id)
+	}
+
+	return nil
+}
+
+// TODO: implement
+
+func (s *DatabaseConnection) ExtRefExists(ref string) bool {
+	err := s.db.QueryRow(
+		"SELECT * FROM Logs WHERE id = $1", id).Scan(&issue.Internal_ID, &issue.External_Ref, &issue.Title, &issue.Description, &issue.Active)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrIssueNotFound(id)
+		}
+		return nil, err
+	}
+}
+
+// Errors
+
+type ErrorIssueNotFound struct {
+	msg string
+}
+
+func (ierr ErrorIssueNotFound) Error() string {
+	return ierr.msg
+}
+
+func ErrIssueNotFound(id int) error {
+	return fmt.Errorf("issue with id %d not found", id)
 }

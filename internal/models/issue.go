@@ -13,16 +13,6 @@ type Issue struct {
 	Active       bool
 }
 
-func (i *Issue) validateIssue() bool {
-
-	// External ref size delimiter
-	if len([]byte(i.External_Ref)) > 12 {
-		return false
-	}
-
-	return true
-}
-
 type LogEntry struct {
 	Timestamp string // Change to time package later
 	Entry     string
