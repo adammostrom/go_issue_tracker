@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"issuetracker/internal/models"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -22,7 +23,7 @@ type IssueServiceInterface interface {
 	GetIssueByID(id int) (*models.Issue, error)
 	DeleteIssue(id int) error
 	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
-	GetLogsFromIssue(id int) (*[]models.LogEntry, error)
+	GetLogsFromIssue(id int) ([]models.LogEntry, error)
 }
 
 type Router struct {
@@ -123,6 +124,8 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req models.CreateIssueRequest
 
+	var resp models.IssueResponse
+
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -131,11 +134,18 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	issue, err_post := s.issueService.CreateNewIssue(req)
 
+	fmt.Println("CREATED ISSUE")
+
 	if err_post != nil {
 		http.Error(w, err_post.Error(), http.StatusBadRequest)
 	}
 
-	resp := issueToIssueResponse(*issue)
+	if issue == nil {
+		http.Error(w, "issue not created"+err_post.Error(), http.StatusBadRequest)
+
+	} else {
+		resp = issueToIssueResponse(*issue)
+	}
 
 	json.NewEncoder(w).Encode(resp)
 
@@ -167,6 +177,8 @@ func (s *Router) PatchIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var upd_req models.UpdateIssueRequest
 
+	var resp models.IssueResponse
+
 	err_decode := json.NewDecoder(r.Body).Decode(&upd_req)
 	if err_decode != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -179,11 +191,18 @@ func (s *Router) PatchIssueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updated, err_updated := s.issueService.GetIssueByID(int(id))
+
 	if err_updated != nil {
 		http.Error(w, err_updated.Error(), http.StatusBadRequest)
 	}
+	if updated == nil {
+		http.Error(w, "issue not created"+err_updated.Error(), http.StatusBadRequest)
 
-	json.NewEncoder(w).Encode(issueToIssueResponse(*updated))
+	} else {
+		resp = issueToIssueResponse(*updated)
+	}
+
+	json.NewEncoder(w).Encode(resp)
 	fmt.Printf("*** TESTING - PATCHED ***\n ID: %d\n TITLE: %s\n EXTERNAL REF: %s\n", updated.Internal_ID, updated.Title, updated.External_Ref)
 
 	w.WriteHeader(http.StatusOK)
@@ -199,13 +218,14 @@ func (s *Router) GetLogsFromIssueHandler(w http.ResponseWriter, r *http.Request)
 
 	logs, err := s.issueService.GetLogsFromIssue(int(id))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-
+		log.Printf("Error fetching logs: %v", err)                   // ✅ print to server logs
+		http.Error(w, "Failed to fetch logs", http.StatusBadRequest) // ✅ user-friendly
 	}
-	for log, _ := range logs {
-		json.NewEncoder(w).Encode((log))
-	}
-
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
+	// Encode the whole slice at once
+	if err := json.NewEncoder(w).Encode(logs); err != nil {
+		// optional: log error, cannot write another HTTP status here
+	}
 }

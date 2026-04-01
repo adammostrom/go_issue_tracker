@@ -23,6 +23,8 @@ type DatabaseInterface interface {
 	CreateIssue(issue *models.Issue) (*models.Issue, error)
 	CreateLogEntry(id int64, logEntry models.LogEntry) error
 	DeleteIssue(id int) error
+	ExtRefExists(ref string) (bool, error)
+	GetLogs(id int) ([]models.LogEntry, error)
 }
 
 // IssueService accepts a database connection in order to delegate tasks downwards
@@ -58,13 +60,18 @@ func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Is
 	if err := issue.ValidateIssue(); err != nil {
 		return nil, err
 	}
+	exists, err := s.db_layer.ExtRefExists(issue.External_Ref)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, fmt.Errorf("External ref: %s already exists.", issue.External_Ref)
+	}
 
 	issue_updated, err := s.db_layer.CreateIssue(issue)
 	if err != nil {
 		return nil, err
 	}
-	// FOR TESTING
-	fmt.Printf("Issue: %s - Created at: %v\n", req.Title, timestamp)
 	return issue_updated, nil
 }
 
@@ -156,13 +163,10 @@ func (s *IssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) err
 	return nil
 }
 
-func (s *IssueService) GetLogsFromIssue(id int) (*[]models.LogEntry, error) {
+func (s *IssueService) GetLogsFromIssue(id int) ([]models.LogEntry, error) {
 	logs, err := s.db_layer.GetLogs(id)
 	if err != nil {
 		return nil, err
 	}
-	return logs
-
+	return logs, nil
 }
-
-// TODO, IMPLEMENT:

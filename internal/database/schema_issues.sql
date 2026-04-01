@@ -8,11 +8,11 @@ CREATE TABLE IF NOT EXISTS Issues (
 
 
 CREATE TABLE IF NOT EXISTS Logs (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     issue_id INTEGER,
     timestamp TEXT,
     entry TEXT,
     FOREIGN KEY(issue_id) REFERENCES Issues(id)
 );
 
-CREATE INDEX IF NOT EXISTS  idx_issues_external_ref ON issues(external_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_external_ref ON Issues(external_ref);
