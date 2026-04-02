@@ -2,7 +2,6 @@ package router
 
 import (
 	"encoding/json"
-	"fmt"
 	"issuetracker/internal/models"
 	"log"
 	"net/http"
@@ -76,19 +75,29 @@ func (s *Router) AllRouting(w http.ResponseWriter, r *http.Request) {
 // Gets a single issue from the database.
 func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 
+	var resp models.IssueResponse
+
 	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("invalid id in path: %v", err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
 
 	issue, err := s.issueService.GetIssueByID(int(id))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("failed to get issue with id: %d", id)
+		http.Error(w, "failed to get issue", http.StatusBadRequest)
 		return
 	}
+	if issue == nil {
+		log.Printf("Failed to get issue -> issue = %v\n", issue)
+		http.Error(w, "failed to get issue\n", http.StatusBadRequest)
+		return
 
-	resp := issueToIssueResponse(*issue)
+	} else {
+		resp = issueToIssueResponse(*issue)
+	}
 
 	json.NewEncoder(w).Encode(resp)
 
@@ -97,15 +106,11 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
-	/*
-		query := r.URL.Query()
-		resolved := query.Get("resolved")
-		search := query.Get("search")
-	*/
+
 	issues, err := s.issueService.GetAllIssues()
 	if err != nil {
-		fmt.Printf(err.Error())
-		http.Error(w, "bad request", http.StatusBadRequest)
+		log.Printf("Failed to get issues")
+		http.Error(w, "failed to get issues\n", http.StatusBadRequest)
 	}
 
 	var response []models.IssueResponse
@@ -128,20 +133,23 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("failed to decode request body: %v", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
 	issue, err_post := s.issueService.CreateNewIssue(req)
 
-	fmt.Println("CREATED ISSUE")
-
 	if err_post != nil {
-		http.Error(w, err_post.Error(), http.StatusBadRequest)
+		log.Printf("Failed to create issue -> issue = %v\n", issue)
+		http.Error(w, "failed to create new issuen", http.StatusBadRequest)
+		return
 	}
 
 	if issue == nil {
-		http.Error(w, "issue not created"+err_post.Error(), http.StatusBadRequest)
+		log.Printf("Failed to create issue -> issue = %v\n", issue)
+		http.Error(w, "issue not created\n", http.StatusBadRequest)
+		return
 
 	} else {
 		resp = issueToIssueResponse(*issue)
@@ -156,14 +164,17 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Router) deleteSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("invalid id in path: %v", err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
 
 	err = s.issueService.DeleteIssue(int(id))
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("Error deleting issue: %v with id: %d\n", err, id)
+		http.Error(w, "Failed to delete issue\n", http.StatusBadRequest)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -172,54 +183,58 @@ func (s *Router) deleteSingleIssueHandler(w http.ResponseWriter, r *http.Request
 func (s *Router) PatchIssueHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("invalid id in path: %v", err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	var upd_req models.UpdateIssueRequest
 
-	var resp models.IssueResponse
-
-	err_decode := json.NewDecoder(r.Body).Decode(&upd_req)
-	if err_decode != nil {
+	var updReq models.UpdateIssueRequest
+	if err := json.NewDecoder(r.Body).Decode(&updReq); err != nil {
+		log.Printf("failed to decode request body: %v", err)
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
-	err_patch := s.issueService.PatchIssue(int(id), upd_req)
-	if err_patch != nil {
-		http.Error(w, err_patch.Error(), http.StatusBadRequest)
+	if err := s.issueService.PatchIssue(int(id), updReq); err != nil {
+		log.Printf("failed to patch issue %d: %v", id, err)
+		http.Error(w, "failed to update issue", http.StatusBadRequest)
+		return
 	}
 
-	updated, err_updated := s.issueService.GetIssueByID(int(id))
-
-	if err_updated != nil {
-		http.Error(w, err_updated.Error(), http.StatusBadRequest)
+	updated, err := s.issueService.GetIssueByID(int(id))
+	if err != nil {
+		log.Printf("failed to fetch updated issue %d: %v", id, err)
+		http.Error(w, "failed to fetch updated issue", http.StatusInternalServerError)
+		return
 	}
+
 	if updated == nil {
-		http.Error(w, "issue not created"+err_updated.Error(), http.StatusBadRequest)
-
-	} else {
-		resp = issueToIssueResponse(*updated)
+		log.Printf("issue %d not found after update", id)
+		http.Error(w, "issue not found", http.StatusNotFound)
+		return
 	}
 
-	json.NewEncoder(w).Encode(resp)
-	fmt.Printf("*** TESTING - PATCHED ***\n ID: %d\n TITLE: %s\n EXTERNAL REF: %s\n", updated.Internal_ID, updated.Title, updated.External_Ref)
+	resp := issueToIssueResponse(*updated)
 
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
+// Returns all the logs from a specific issue.
 func (s *Router) GetLogsFromIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("invalid id in path: %v", err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
 
 	logs, err := s.issueService.GetLogsFromIssue(int(id))
 	if err != nil {
-		log.Printf("Error fetching logs: %v", err)                   // ✅ print to server logs
-		http.Error(w, "Failed to fetch logs", http.StatusBadRequest) // ✅ user-friendly
+		log.Printf("Error fetching logs: %v\n", err)
+		http.Error(w, "Failed to fetch logs\n", http.StatusBadRequest)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
