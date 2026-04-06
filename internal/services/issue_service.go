@@ -18,7 +18,7 @@ import (
 
 type DatabaseInterface interface {
 	GetIssue(id int) (*models.Issue, error)
-	GetIssues() ([]models.Issue, error)
+	GetIssues(query string) ([]models.Issue, error)
 	ModifyIssue(fields []interface{}, query string, id int) error
 	CreateIssue(issue *models.Issue) (*models.Issue, error)
 	CreateLogEntry(id int64, logEntry models.LogEntry) error
@@ -26,6 +26,10 @@ type DatabaseInterface interface {
 	ExtRefExists(ref string) (bool, error)
 	GetLogs(id int) ([]models.LogEntry, error)
 }
+
+const QUERY_ALL_ACTIVE = "SELECT * FROM Issues WHERE active = 1"
+const QUERY_ALL_INACTIVE = "SELECT * FROM Issues WHERE active = 0"
+const QUERY_ALL = "SELECT * FROM Issues"
 
 // IssueService accepts a database connection in order to delegate tasks downwards
 // 2026-03-24: Depends on interface instead of direct connection
@@ -61,6 +65,8 @@ func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Is
 		Log:          logEntries,
 		Active:       true,
 	}
+
+	fmt.Printf("External ref from service: %s", issue.External_Ref)
 	if err := issue.ValidateIssue(); err != nil {
 		return nil, err
 	}
@@ -79,8 +85,22 @@ func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Is
 	return issue_updated, nil
 }
 
-func (s *IssueService) GetAllIssues() ([]models.Issue, error) {
-	issues, err := s.db_layer.GetIssues()
+// TODO: 2026-04-05 Come back to this and refactor/update so  its more centralized and not a new function for each filtering query
+func (s *IssueService) GetAllIssues(status models.IssueStatus) ([]models.Issue, error) {
+
+	var query string
+
+	switch status {
+	case models.StatusUknown:
+		return nil, fmt.Errorf("Unknown status: %d", status)
+	case models.StatusActive:
+		query = QUERY_ALL_ACTIVE
+	case models.StatusInactive:
+		query = QUERY_ALL_INACTIVE
+	default:
+		query = QUERY_ALL
+	}
+	issues, err := s.db_layer.GetIssues(query)
 	if err != nil {
 		return nil, err // Works because a slice is a pointer to an array
 	}

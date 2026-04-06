@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
 	//_ "github.com/lib/pq" // Import pq for PostgreSQL driver
@@ -33,33 +32,11 @@ func main() {
 	case "start":
 		startCmd(os.Args[2:], issueService)
 	case "issue":
-		issueCmd(os.Args[2:], issueService)
-	}
+		cli := cli.NewCLI(issueService)
+		cli.Run(os.Args[2:])
+	default:
+		fmt.Println("No valid subcommand provided") // TODO: Show subcommands (make function)
 
-}
-
-func issueCmd(args []string, issueService *services.IssueService) {
-
-	cli := cli.NewCLI(issueService)
-
-	if len(args) < 1 {
-		fmt.Println("expected subcommand")
-		return
-	}
-	switch args[0] {
-	case "list":
-		cli.GetIssues()
-	case "show":
-		id, err := strconv.Atoi(args[1])
-		if err != nil {
-			fmt.Printf("invalid id: %s\n", args[0])
-			return
-		}
-		issue, err := cli.GetIssue(id)
-		if err != nil {
-			return
-		}
-		fmt.Printf("issue found: %s\n", issue.Title)
 	}
 
 }

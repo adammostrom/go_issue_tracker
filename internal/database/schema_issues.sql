@@ -16,3 +16,10 @@ CREATE TABLE IF NOT EXISTS Logs (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_external_ref ON Issues(external_ref);
+
+DROP VIEW IF EXISTS Active;
+
+CREATE VIEW Active AS 
+SELECT external_ref, title
+FROM Issues i
+WHERE i.Active = 1;

@@ -35,8 +35,8 @@ func NewDatabaseConnection(db *sql.DB) *DatabaseConnection {
 // & = address, returns pointer of type IssueDBConn
 
 // “Given an Issue struct, store it in the database.”
-func (s *DatabaseConnection) GetIssues() ([]models.Issue, error) {
-	rows, err := s.db.Query("SELECT * FROM Issues") // TODO 2026-03-31: Make a view in SQL and select from that one instead
+func (s *DatabaseConnection) GetIssues(query string) ([]models.Issue, error) {
+	rows, err := s.db.Query(query) // TODO 2026-03-31: Make a view in SQL and select from that one instead
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +53,11 @@ func (s *DatabaseConnection) GetIssues() ([]models.Issue, error) {
 	}
 	return issues, nil
 }
+
+/* func (s *DatabaseConnection) GetActiveIssues() ([]models.Issue, error) {
+	rows, err := s.db.Query("SELECT * FROM Issues WHERE active = 1")
+
+} */
 
 func (s *DatabaseConnection) GetLogs(id int) ([]models.LogEntry, error) {
 	rows, err := s.db.Query("SELECT timestamp, entry FROM Logs WHERE issue_id = ?", id)

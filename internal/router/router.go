@@ -18,7 +18,7 @@ The router/handler is responsible for:
 
 type IssueServiceInterface interface {
 	CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error)
-	GetAllIssues() ([]models.Issue, error)
+	GetAllIssues(status models.IssueStatus) ([]models.Issue, error)
 	GetIssueByID(id int) (*models.Issue, error)
 	DeleteIssue(id int) error
 	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
@@ -105,9 +105,23 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// TODO: 2026-04-06: Find a way to not duplicate these functions.
 func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 
-	issues, err := s.issueService.GetAllIssues()
+	statusStr := r.URL.Query().Get("status")
+
+	status := models.StatusDefault
+
+	if statusStr != "" {
+		parsed, err := models.ParseStatus(statusStr)
+		if err != nil {
+			http.Error(w, "invalid status", http.StatusBadRequest)
+			return
+		}
+		status = parsed
+	}
+
+	issues, err := s.issueService.GetAllIssues(status)
 	if err != nil {
 		log.Printf("Failed to get issues")
 		http.Error(w, "failed to get issues\n", http.StatusBadRequest)
@@ -119,9 +133,8 @@ func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 		response = append(response, issueToIssueResponse(issue))
 	}
 
-	json.NewEncoder(w).Encode(response) // Fetches the IssueService slice reference (returns the whole slice)
-
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response) // Fetches the IssueService slice reference (returns the whole slice)
 
 }
 
@@ -155,9 +168,8 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 		resp = issueToIssueResponse(*issue)
 	}
 
-	json.NewEncoder(w).Encode(resp)
-
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
 
 }
 

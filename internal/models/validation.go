@@ -6,7 +6,7 @@ const TITLE_MIN = 2
 const TITLE_MAX = 20
 const EXTERNAL_MIN = 2
 const EXTERNAL_MAX = 12
-const DESCR_MIN = 2
+const DESCR_MIN = 0
 const DESCR_MAX = 50
 
 func (i *Issue) ValidateIssue() error {
@@ -23,7 +23,7 @@ func (i *Issue) ValidateIssue() error {
 }
 func ValidateExternalRef(extRef string) error {
 	if len(extRef) < EXTERNAL_MIN || len(extRef) > EXTERNAL_MAX {
-		return fmt.Errorf("External Reference must be between %d and %d \n", EXTERNAL_MIN, EXTERNAL_MAX)
+		return fmt.Errorf("External Reference must be between %d and %d . Provided was: %s\n", EXTERNAL_MIN, EXTERNAL_MAX, extRef)
 	}
 	return nil
 }
