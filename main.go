@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
 	"issuetracker/internal/cli"
@@ -19,9 +20,32 @@ import (
 // Only does initialization: database connection, routing, and starting the HTTP server.
 func main() {
 
-	// Initate and load the database schema
-	db := database.InitDB()
+	if len(os.Args) < 2 {
+		fmt.Println("Exptected commands: start, issue, init")
+		return
+	}
 
+	cmd := os.Args[1]
+
+	var db *sql.DB
+	var err error
+
+	switch cmd {
+	case "init":
+		_, err := database.InitDB()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	default:
+		// all other commands require existing db
+		db, err = database.OpenDB()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+	// Initate and load the database schema
 	// Initiate the connection to the database (read/write) -> layer between service and db
 	db_connection := database.NewDatabaseConnection(db)
 
@@ -29,13 +53,15 @@ func main() {
 	issueService := services.NewIssueService(db_connection)
 
 	switch os.Args[1] {
+	case "init":
+		fmt.Println("Database already initiated")
 	case "start":
 		startCmd(os.Args[2:], issueService)
 	case "issue":
 		cli := cli.NewCLI(issueService)
 		cli.Run(os.Args[2:])
 	default:
-		fmt.Println("No valid subcommand provided") // TODO: Show subcommands (make function)
+		fmt.Println("No valid command provided") // TODO: Show subcommands (make function)
 
 	}
 

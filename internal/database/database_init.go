@@ -20,17 +20,16 @@ func panic_mode(err error) {
 	}
 }
 
-func NewDB(path string) (*sql.DB, error) {
+// Basically Run the DB
+func OpenDB() (*sql.DB, error) {
+	path := DB_FOLDER + "/" + "issues.db"
 
-	db, err := sql.Open("sqlite3", path)
-	panic_mode(err)
-
-	err = db.Ping()
-	if err != nil {
-		fmt.Printf("Database not reached with error: %s\n", err)
-		panic(err)
+	// check existence
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil, fmt.Errorf("database not initialized, run 'issuetracker init'")
 	}
-	return db, nil
+
+	return sql.Open("sqlite3", path)
 }
 
 // Loads and executes the schema
@@ -48,27 +47,26 @@ func InitSchema(db *sql.DB) error {
 // Should initiate the DB only if it doesnt exist
 // Check if the issue.db exists, if not, load and execute the schema
 // via the InitSchema function
-func InitDB() *sql.DB {
+func InitDB() (*sql.DB, error) {
+	path := DB_FOLDER + "/" + "issues.db"
 
-	path := DB_FOLDER + "/issues.db"
-
-	os.MkdirAll(DB_FOLDER, 0755)
-
-	firstInit := !DBExists(path)
-
-	db, err := NewDB(path)
-	panic_mode(err)
-
-	// Now schema runs only once
-	if firstInit {
-		err = InitSchema(db)
-		panic_mode(err)
-		fmt.Println("Database initiated successfully")
-		fmt.Printf("Created DB instance with name: %s", DB_NAME+"db\n")
-
+	err := os.MkdirAll(DB_FOLDER, 0755)
+	if err != nil {
+		return nil, err
 	}
 
-	return db
+	db, err := sql.Open("sqlite3", path)
+	if err != nil {
+		return nil, err
+	}
+
+	err = InitSchema(db)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Database initialized")
+	return db, nil
 }
 
 func DBExists(path string) bool {
