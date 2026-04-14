@@ -16,6 +16,7 @@ type IssueServiceInterface interface {
 	DeleteIssue(id int) error
 	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
 	GetLogsFromIssue(id int) ([]models.LogEntry, error)
+	AddLogEntry(id int, entry string) error
 }
 
 type CommandLineInterface struct {
@@ -23,22 +24,177 @@ type CommandLineInterface struct {
 }
 
 func NewCLI(s IssueServiceInterface) *CommandLineInterface {
-	return &CommandLineInterface{
+
+	cli := &CommandLineInterface{
 		issueService: s,
+	}
+	/* 	var commands = Command{
+		Call: "list",
+		Op:   cli.listCmd, // ✅ safe, cli already exists
+	} */
+	return cli
+}
+
+type Command struct {
+	name        string
+	operation   func(args []string)
+	subcommands map[string]*Command
+}
+
+func (s *CommandLineInterface) BuildCommands() map[string]*Command {
+	return map[string]*Command{
+		"list": {
+			name:      "list",
+			operation: s.listCmd,
+		},
+		"get": {
+			name:      "get",
+			operation: s.getCmd,
+		},
+		"log": {
+			name: "log",
+			operation: func(args []string) {
+				fmt.Println("Available subcommands: get, create")
+			},
+			subcommands: map[string]*Command{
+				"get": {
+					name:      "get",
+					operation: s.getLogCmd,
+				},
+				"create": {
+					name:      "create",
+					operation: s.createLogCmd,
+				},
+			},
+		},
+	}
+}
+
+func (s *CommandLineInterface) Run(cmds map[string]*Command, args []string) {
+	s.dispatch(cmds, args)
+}
+
+func (s *CommandLineInterface) dispatch(cmds map[string]*Command, args []string) {
+	if len(args) == 0 {
+		fmt.Println("Expected subcommand")
+		return
+	}
+
+	current, ok := cmds[args[0]]
+	if !ok {
+		fmt.Println("Unknown command: ", args[0])
+	}
+
+	args = args[1:]
+
+	for len(args) > 0 {
+		if current.subcommands == nil {
+			break
+		}
+
+		next, ok := current.subcommands[args[0]]
+		if !ok {
+			break
+		}
+
+		current = next
+		args = args[1:]
+	}
+	if current.operation != nil {
+		current.operation(args)
+	} else {
+		fmt.Println("Missing subcommand:", current.name)
+	}
+
+}
+
+func (s *CommandLineInterface) getLogCmd(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Expected id as argument to command!")
+		return
+	}
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Printf("invalid id: %s\n", args[0])
+		fmt.Println(err)
+		return
+	}
+	logs, err := s.issueService.GetLogsFromIssue(id)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if len(logs) == 0 {
+		fmt.Println("No logs found")
+		return
+	}
+	for _, log := range logs {
+		fmt.Printf("log: %v\n", log)
+	}
+
+}
+
+func (s *CommandLineInterface) createLogCmd(args []string) {
+
+}
+
+func (s *CommandLineInterface) logCmd(args []string) {
+
+	if len(args) < 1 {
+		fmt.Println("expected subcommand: ")
+	}
+}
+
+func (s *CommandLineInterface) getCmd(args []string) {
+
+	if len(args) < 1 {
+		fmt.Println("Expected id as argument to command!")
+		return
+	}
+
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Printf("invalid id: %s\n", args[0])
+		fmt.Println(err)
+		return
+	}
+	issue, err := s.GetIssue(id)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	s.printIssue(issue)
+}
+
+func (s *CommandLineInterface) listCmd(args []string) {
+
+	status := models.StatusDefault
+
+	if len(args) > 0 {
+		parsed, err := models.ParseStatus(args[0])
+		if err != nil {
+			fmt.Println("invalid status")
+			return
+		}
+		status = parsed
+	}
+	issues, err := s.GetIssues(status)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if len(issues) == 0 {
+		fmt.Println("No issues found")
+	}
+	for _, issue := range issues {
+		s.printIssue(&issue)
 	}
 }
 
 func (s *CommandLineInterface) GetIssues(status models.IssueStatus) ([]models.Issue, error) {
 	issues, err := s.issueService.GetAllIssues(status)
 	if err != nil {
-		fmt.Println("Could not find issues")
 		return nil, err
-
-	}
-
-	fmt.Printf("Found %d issues\n", len(issues))
-	for i := range issues {
-		s.printIssue(&issues[i])
 	}
 	return issues, nil
 }
@@ -46,10 +202,8 @@ func (s *CommandLineInterface) GetIssues(status models.IssueStatus) ([]models.Is
 func (s *CommandLineInterface) GetIssue(id int) (*models.Issue, error) {
 	issue, err := s.issueService.GetIssueByID(id)
 	if err != nil || issue == nil {
-		fmt.Printf("Could not find issue with id: %d\n", id)
 		return nil, err
 	}
-	s.printIssue(issue)
 	return issue, nil
 }
 
@@ -92,56 +246,24 @@ func (s *CommandLineInterface) CreateIssue() error {
 	return nil
 }
 
-func (c *CommandLineInterface) Run(args []string) {
+func (s *CommandLineInterface) CreateLogEntry(id int, entry string) error {
+	reader := bufio.NewReader(os.Stdin)
 
-	if len(args) < 1 {
-		fmt.Println("expected subcommand")
-		return
-	}
-	switch args[0] {
-	case "list":
-		c.listCmd(args[1:])
-	case "show":
-		if len(args) < 2 {
-			fmt.Printf("No valid argument provided for SHOW subcommand: %s\n", args)
-			return
-		}
-		c.showCmd(args[1])
-	case "create":
-		c.CreateIssue()
-	}
-
-}
-
-func (c *CommandLineInterface) showCmd(arg string) {
-
-	id, err := strconv.Atoi(arg)
+	fmt.Println("Entry: ")
+	entry, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Printf("invalid id: %s\n", arg)
-		return
+		fmt.Printf("Could not read entry: %s\n", entry)
+		return err
 	}
-	issue, err := c.GetIssue(id)
+	err = s.issueService.AddLogEntry(id, entry)
 	if err != nil {
-		return
+		fmt.Printf("Failed to create log entry: %s", err)
+		return err
 	}
-	fmt.Printf("single issue found: %s\n", issue.Title)
+	return nil
 }
 
-func (c *CommandLineInterface) listCmd(args []string) {
-
-	status := models.StatusDefault
-
-	if len(args) > 0 {
-		parsed, err := models.ParseStatus(args[0])
-		if err != nil {
-			fmt.Println("invalid status")
-			return
-		}
-		status = parsed
-	}
-	c.GetIssues(status)
-}
-
+// TODO: 2026-04-14: come back to update this. Somewhat clunky.
 func (s *CommandLineInterface) printIssue(issue *models.Issue) error {
 	if issue == nil {
 		return nil

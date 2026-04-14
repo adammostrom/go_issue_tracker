@@ -48,13 +48,14 @@ func InitSchema(db *sql.DB) error {
 // Check if the issue.db exists, if not, load and execute the schema
 // via the InitSchema function
 func InitDB() (*sql.DB, error) {
-	path := DB_FOLDER + "/" + "issues.db"
+	path := DB_FOLDER + "/" + DB_NAME + ".db"
 
 	err := os.MkdirAll(DB_FOLDER, 0755)
 	if err != nil {
 		return nil, err
 	}
 
+	// todo: add config for swapping out the database
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err

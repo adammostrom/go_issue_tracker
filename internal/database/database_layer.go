@@ -79,8 +79,6 @@ func (s *DatabaseConnection) GetLogs(id int) ([]models.LogEntry, error) {
 
 		*/
 		rows.Scan(&i.Timestamp, &i.Entry)
-
-		fmt.Printf("FROM DB, timestamp: %s, entry: %s\n", i.Timestamp, i.Entry)
 		logs = append(logs, i)
 	}
 	return logs, nil
@@ -103,7 +101,6 @@ func (s *DatabaseConnection) CreateIssue(issue *models.Issue) (*models.Issue, er
 	}
 
 	log_err := s.CreateLogEntry(id, issue.Log[0])
-	fmt.Printf("LOG ENTRY From CREATE ISSUE: %s \n", issue.Log[0])
 	if log_err != nil {
 		return nil, log_err
 	}
@@ -121,10 +118,7 @@ func (s *DatabaseConnection) CreateLogEntry(id int64, logEntry models.LogEntry) 
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("CREATELOGENTRY: appended log: timestamp: %s, entry: %s", logEntry.Timestamp, logEntry.Entry)
 	return err
-
 }
 
 func (s *DatabaseConnection) GetIssue(id int) (*models.Issue, error) {
@@ -161,8 +155,6 @@ func (s *DatabaseConnection) ModifyIssue(fields []interface{}, query string, id 
 	if rows == 0 {
 		return ErrIssueNotFound(id)
 	}
-	// MOSTLY FOR DEBUGGING
-	fmt.Printf("res: %v\n", res)
 	return err
 }
 

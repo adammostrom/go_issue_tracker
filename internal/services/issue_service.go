@@ -194,3 +194,18 @@ func (s *IssueService) GetLogsFromIssue(id int) ([]models.LogEntry, error) {
 	}
 	return logs, nil
 }
+
+func (s *IssueService) AddLogEntry(id int, entry string) error {
+	timestamp := time.Now().Format("2006-01-02-15:04")
+	var logEntry = models.LogEntry{
+		Timestamp: timestamp, Entry: entry,
+	}
+
+	err := logEntry.ValidateEntry()
+	if err != nil {
+		return err
+	}
+
+	return s.db_layer.CreateLogEntry(int64(id), logEntry)
+
+}

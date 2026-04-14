@@ -52,14 +52,17 @@ func main() {
 	// Create a service struct that delegates to the database for read/write
 	issueService := services.NewIssueService(db_connection)
 
+	cli := cli.NewCLI(issueService)
+
+	cmds := cli.BuildCommands()
+
 	switch os.Args[1] {
 	case "init":
 		fmt.Println("Database already initiated")
 	case "start":
 		startCmd(os.Args[2:], issueService)
 	case "issue":
-		cli := cli.NewCLI(issueService)
-		cli.Run(os.Args[2:])
+		cli.Run(cmds, os.Args[2:])
 	default:
 		fmt.Println("No valid command provided") // TODO: Show subcommands (make function)
 
