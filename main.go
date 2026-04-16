@@ -57,6 +57,8 @@ func main() {
 	cmds := cli.BuildCommands()
 
 	switch os.Args[1] {
+	case "help":
+		cli.PrintCommands(cmds, 0)
 	case "init":
 		fmt.Println("Database already initiated")
 	case "start":

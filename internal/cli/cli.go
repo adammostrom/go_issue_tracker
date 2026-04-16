@@ -74,6 +74,22 @@ func (s *CommandLineInterface) Run(cmds map[string]*Command, args []string) {
 	s.dispatch(cmds, args)
 }
 
+func (s *CommandLineInterface) PrintCommands(cmds map[string]*Command, depth int) {
+	for name, cmd := range cmds {
+		// indent based on depth
+		for i := 0; i < depth; i++ {
+			fmt.Print("  ")
+		}
+
+		fmt.Println(name)
+
+		// recurse into subcommands
+		if cmd.subcommands != nil {
+			s.PrintCommands(cmd.subcommands, depth+1)
+		}
+	}
+}
+
 func (s *CommandLineInterface) dispatch(cmds map[string]*Command, args []string) {
 	if len(args) == 0 {
 		fmt.Println("Expected subcommand")

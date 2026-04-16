@@ -59,14 +59,13 @@ func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Is
 
 	// Internal ID generated at db insert
 	issue := &models.Issue{
-		External_Ref: req.External_Ref,
 		Title:        req.Title,
+		External_Ref: req.External_Ref,
 		Description:  req.Description,
 		Log:          logEntries,
 		Active:       true,
 	}
 
-	fmt.Printf("External ref from service: %s", issue.External_Ref)
 	if err := issue.ValidateIssue(); err != nil {
 		return nil, err
 	}
@@ -78,11 +77,7 @@ func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Is
 		return nil, fmt.Errorf("External ref: %s already exists.", issue.External_Ref)
 	}
 
-	issue_updated, err := s.db_layer.CreateIssue(issue)
-	if err != nil {
-		return nil, err
-	}
-	return issue_updated, nil
+	return s.db_layer.CreateIssue(issue)
 }
 
 // TODO: 2026-04-05 Come back to this and refactor/update so  its more centralized and not a new function for each filtering query
