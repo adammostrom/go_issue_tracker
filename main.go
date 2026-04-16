@@ -20,31 +20,19 @@ import (
 // Only does initialization: database connection, routing, and starting the HTTP server.
 func main() {
 
-	if len(os.Args) < 2 {
-		fmt.Println("Exptected commands: start, issue, init")
-		return
-	}
-
-	cmd := os.Args[1]
-
 	var db *sql.DB
 	var err error
 
-	switch cmd {
-	case "init":
-		_, err := database.InitDB()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	default:
-		// all other commands require existing db
-		db, err = database.OpenDB()
+	// No need for INIT
+	db, err = database.OpenDB()
+	if err != nil {
+		db, err = database.InitDB()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 	}
+
 	// Initate and load the database schema
 	// Initiate the connection to the database (read/write) -> layer between service and db
 	db_connection := database.NewDatabaseConnection(db)
@@ -56,17 +44,16 @@ func main() {
 
 	cmds := cli.BuildCommands()
 
-	switch os.Args[1] {
-	case "help":
+	if len(os.Args) < 2 {
 		cli.PrintCommands(cmds, 0)
-	case "init":
-		fmt.Println("Database already initiated")
+		return
+	}
+
+	switch os.Args[1] {
 	case "start":
 		startCmd(os.Args[2:], issueService)
-	case "issue":
-		cli.Run(cmds, os.Args[2:])
 	default:
-		fmt.Println("No valid command provided") // TODO: Show subcommands (make function)
+		cli.Run(cmds, os.Args[2:])
 
 	}
 
