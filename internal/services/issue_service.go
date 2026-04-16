@@ -54,8 +54,9 @@ func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Is
 	}
 
 	// TODO 2026-04-03 come back and write a proper function to clean the external ref. example: "Code 234" -> "CODE234"
-	strings.TrimSpace(req.External_Ref)
-	strings.ToUpper(req.External_Ref)
+	req.External_Ref = strings.TrimSpace(req.External_Ref)
+	req.External_Ref = strings.ReplaceAll(req.External_Ref, " ", "")
+	req.External_Ref = strings.ToUpper(req.External_Ref)
 
 	// Internal ID generated at db insert
 	issue := &models.Issue{

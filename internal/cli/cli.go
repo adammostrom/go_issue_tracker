@@ -51,6 +51,13 @@ func (s *CommandLineInterface) BuildCommands() map[string]*Command {
 			name:      "get",
 			operation: s.getCmd,
 		},
+		"create": {
+			name:      "create",
+			operation: s.createCmd,
+		},
+		// TODO: Patch
+		// TODO: Delete
+		// TODO: Create issue
 		"log": {
 			name: "log",
 			operation: func(args []string) {
@@ -161,6 +168,7 @@ func (s *CommandLineInterface) logCmd(args []string) {
 	}
 }
 
+// Get one issue
 func (s *CommandLineInterface) getCmd(args []string) {
 
 	if len(args) < 1 {
@@ -182,6 +190,7 @@ func (s *CommandLineInterface) getCmd(args []string) {
 	s.printIssue(issue)
 }
 
+// Get all issues
 func (s *CommandLineInterface) listCmd(args []string) {
 
 	status := models.StatusDefault
@@ -205,6 +214,16 @@ func (s *CommandLineInterface) listCmd(args []string) {
 	for _, issue := range issues {
 		s.printIssue(&issue)
 	}
+}
+
+func (s *CommandLineInterface) createCmd(args []string) {
+
+	err := s.CreateIssue()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 }
 
 func (s *CommandLineInterface) GetIssues(status models.IssueStatus) ([]models.Issue, error) {
@@ -236,13 +255,24 @@ func (s *CommandLineInterface) CreateIssue() error {
 	}
 	issue_request.Title = strings.TrimSpace(title)
 
-	fmt.Print("External Reference: ")
-	external_ref, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Printf("Could not read external ref : %s\n", external_ref)
-		return err
+	for {
+		fmt.Print("External Reference: ")
+		external_ref, err := reader.ReadString('\n')
+
+		if err != nil {
+			fmt.Printf("Could not read external ref : %s\n", external_ref)
+			continue
+		}
+
+		err = models.ValidateExternalRef(external_ref)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		issue_request.External_Ref = strings.TrimSpace(external_ref)
+		break
 	}
-	issue_request.External_Ref = strings.TrimSpace(external_ref)
 
 	fmt.Print("Description: ")
 	desc, err := reader.ReadString('\n')
@@ -285,13 +315,15 @@ func (s *CommandLineInterface) printIssue(issue *models.Issue) error {
 		return nil
 	}
 
-	str := fmt.Sprintf("%t", issue.Active)
+	//str := fmt.Sprintf("%t", issue.Active)
 
-	fmt.Printf("ID: %d\n", issue.Internal_ID)
-	fmt.Printf("Title: %s\n", issue.Title)
+	fmt.Println("-------------------------")
+	fmt.Printf("ID:                 %d\n", issue.Internal_ID)
+	fmt.Printf("Title:              %s\n", issue.Title)
 	fmt.Printf("External Reference: %s\n", issue.External_Ref)
-	fmt.Printf("Description: %s\n", issue.Description)
-	fmt.Printf("Active Status: %s\n", str)
+	fmt.Printf("Description:        %s\n", issue.Description)
+	fmt.Printf("Active Status:      %t\n", issue.Active)
+	fmt.Println("-------------------------")
 
 	return nil
 }

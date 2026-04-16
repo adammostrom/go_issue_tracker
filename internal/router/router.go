@@ -23,6 +23,7 @@ type IssueServiceInterface interface {
 	DeleteIssue(id int) error
 	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
 	GetLogsFromIssue(id int) ([]models.LogEntry, error)
+	// TODO: AddLogEntry(id int, entry string) error
 }
 
 type Router struct {
