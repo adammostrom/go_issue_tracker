@@ -70,6 +70,20 @@ func (s *CommandLineInterface) BuildCommands() map[string]*Command {
 	}
 }
 
+func (s *CommandLineInterface) PrintCommands(cmds map[string]*Command, depth int) {
+	for name, cmd := range cmds {
+		for i := 0; i < depth; i++ {
+			//Indent based on depth
+			fmt.Printf("\t")
+		}
+		fmt.Println(name)
+
+		if cmd.subcommands != nil {
+			s.PrintCommands(cmd.subcommands, depth+1)
+		}
+	}
+}
+
 func (s *CommandLineInterface) Run(cmds map[string]*Command, args []string) {
 	s.dispatch(cmds, args)
 }
