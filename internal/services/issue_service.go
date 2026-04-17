@@ -191,13 +191,21 @@ func (s *IssueService) GetLogsFromIssue(id int) ([]models.LogEntry, error) {
 	return logs, nil
 }
 
+// TODO: Change to CreateLogEntry
 func (s *IssueService) AddLogEntry(id int, entry string) error {
+
+	_, err := s.GetIssueByID(id)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
 	timestamp := time.Now().Format("2006-01-02-15:04")
 	var logEntry = models.LogEntry{
 		Timestamp: timestamp, Entry: entry,
 	}
 
-	err := logEntry.ValidateEntry()
+	err = logEntry.ValidateEntry()
 	if err != nil {
 		return err
 	}

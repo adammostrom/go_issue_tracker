@@ -23,7 +23,7 @@ type IssueServiceInterface interface {
 	DeleteIssue(id int) error
 	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
 	GetLogsFromIssue(id int) ([]models.LogEntry, error)
-	// TODO: AddLogEntry(id int, entry string) error
+	AddLogEntry(id int, entry string) error
 }
 
 type Router struct {
@@ -68,9 +68,23 @@ func (s *Router) AllRouting(w http.ResponseWriter, r *http.Request) {
 			s.GetLogsFromIssueHandler(w, r)
 			return
 		}
+		if r.Method == http.MethodPost {
+			s.AddLogEntryHandler(w, r)
+			return
+		}
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *Router) AddLogEntryHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := parseIDfromPath(r.URL.Path)
+	if err != nil {
+		log.Printf("invalid id in path: %v", err)
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	err = s.issueService.AddLogEntry(int(id))
 }
 
 // Gets a single issue from the database.
