@@ -24,9 +24,9 @@
     [/] - In server
     [/] - In database_layer
 [/] - Implement "add log entry" for an issue
-    [ ] - In router
+    [X] - In router
     [X] - In server
-    [ ] - In database_layer
+    [X] - In database_layer
 
 [ ] - Add proper validation for getting an issue that doesnt exist (handle it). 
 [ ] - Add a VIEWS in SQL
@@ -88,6 +88,10 @@ Implement LOGs handling for:
 
 
 # LOG
+
+## 2026-04-21
+Added setting inactive and active in CLI (for router this is done with patch request). Added a getAllIssues test, small fixes and tweaks
+Also added "create log entry" in router/handler
 
 ## 2026-04-15
 
