@@ -204,7 +204,6 @@ func (s *IssueService) AddLogEntry(id int, entry string) error {
 	var logEntry = models.LogEntry{
 		Timestamp: timestamp, Entry: entry,
 	}
-
 	err = logEntry.ValidateEntry()
 	if err != nil {
 		return err

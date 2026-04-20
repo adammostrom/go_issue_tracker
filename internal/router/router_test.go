@@ -1,97 +1,107 @@
 package router
 
 import (
+	"encoding/json"
+	"fmt"
 	"issuetracker/internal/models"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-/*
-func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
-
-	id, err := parseIDfromPath(r.URL.Path)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	issue, err := s.issueService.GetIssueByID(int(id))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	resp := issueToIssueResponse(*issue)
-
-	json.NewEncoder(w).Encode(resp)
-
-	w.WriteHeader(http.StatusOK)
-
-}
-*/
-
-/*
-type IssueServiceInterface interface {
-	CreateNewIssue(external_ref string, title string, desc string) (models.Issue, error)
-	GetAllIssues() []models.Issue
-	GetIssueByID(id int) (*models.Issue, error)
-	DeleteIssue(id int) error
-	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
-}
-
-*/
-
-// Mock Service -> NO DB
-type testService struct{}
-
-func (t *testService) GetIssueByID(id int) (*models.Issue, error) {
-	return &models.Issue{
-		Internal_ID: int64(id),
-		Title:       "test issue",
-	}, nil
-}
-func TestRouter(s *testService) *Router {
-	return &Router{
-		issueService: s,
-	}
+type fakeIssueService struct {
+	called bool
+	status models.IssueStatus
+	issues []models.Issue
+	err    error
 }
 
 /*
-CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error)
+	type IssueServiceInterface interface {
+		CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error)
+		GetAllIssues(status models.IssueStatus) ([]models.Issue, error)
+		GetIssueByID(id int) (*models.Issue, error)
+		DeleteIssue(id int) error
+		PatchIssue(id int, upd_req models.UpdateIssueRequest) error
+		GetLogsFromIssue(id int) ([]models.LogEntry, error)
+		AddLogEntry(id int, entry string) error
+	}
 */
-func (t *testService) GetAllIssues() ([]models.Issue, error) {
-	return []models.Issue{}, nil
-}
-
-func (t *testService) CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error) {
+func (f *fakeIssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error) {
 	return nil, nil
 }
 
-func (t *testService) DeleteIssue(id int) error {
+func (f *fakeIssueService) GetAllIssues(status models.IssueStatus) ([]models.Issue, error) {
+	f.called = true
+	f.status = status
+	fmt.Println("fakeIssueService: GetAllIssues CALLED OK")
+	return f.issues, f.err
+}
+
+func (f *fakeIssueService) GetIssueByID(id int) (*models.Issue, error) {
+	return nil, nil
+}
+
+func (f *fakeIssueService) DeleteIssue(id int) error {
 	return nil
 }
 
-func (t *testService) PatchIssue(id int, upd_req models.UpdateIssueRequest) error {
+func (f *fakeIssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) error {
 	return nil
 }
 
-func TestGetSingleIssue(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/issues/99", nil)
+func (f *fakeIssueService) GetLogsFromIssue(id int) ([]models.LogEntry, error) {
+	return nil, nil
+}
+
+func (f *fakeIssueService) AddLogEntry(id int, entry string) error {
+	return nil
+}
+
+// HAPPY PATH
+// run with "go test ./internal/router/ -v"
+// go test looks for files named *_test.go"
+func TestGetIssuesHandler_OK(t *testing.T) {
+
+	// Fake service, (dependency injection)
+	service := &fakeIssueService{
+		issues: []models.Issue{
+			{Internal_ID: 1, Title: "testGetAll"},
+		},
+	}
+
+	// Inject fake service into router
+	router := &Router{issueService: service}
+
+	// GET /issues
+	req := httptest.NewRequest(http.MethodGet, "/issues", nil)
+
+	// Instead of sending data over network, stores status code and response body
 	w := httptest.NewRecorder()
 
-	service := testService{}
-	r := TestRouter(&service)
+	// Same as the HTTP request
+	router.getIssuesHandler(w, req)
 
-	r.getSingleIssueHandler(w, req)
-
+	// Get the status code and response body
 	res := w.Result()
 
 	if res.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", res.StatusCode)
+		t.Fatalf("expected 200, got %d\n", res.StatusCode)
+	}
+	// Flow correctness
+	if !service.called {
+		t.Fatalf("service not called\n")
+	}
+	if service.status != models.StatusDefault {
+		t.Fatalf("expected default status, got %v\n", service.status)
 	}
 
-	if w.Body.Len() == 0 {
-		t.Fatalf("expected body, got empty")
+	var body []models.IssueResponse
+	err := json.NewDecoder(res.Body).Decode(&body)
+	if err != nil {
+		t.Fatalf("failed to decode response\n")
+	}
+	if len(body) != 1 {
+		t.Fatalf("expected 1 issue, got %d\n", len(body))
 	}
 }

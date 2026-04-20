@@ -51,6 +51,22 @@ func (s *CommandLineInterface) BuildCommands() map[string]*Command {
 			name:      "get",
 			operation: s.getCmd,
 		},
+		"set": {
+			name: "set",
+			operation: func(args []string) {
+				fmt.Println("Available subcommands: active, inactive")
+			},
+			subcommands: map[string]*Command{
+				"active": {
+					name:      "active",
+					operation: s.setActiveCmd,
+				},
+				"inactive": {
+					name:      "inactive",
+					operation: s.setInactiveCmd,
+				},
+			},
+		},
 		"create": {
 			name:      "create",
 			operation: s.createCmd,
@@ -129,6 +145,35 @@ func (s *CommandLineInterface) dispatch(cmds map[string]*Command, args []string)
 		fmt.Println("Missing subcommand:", current.name)
 	}
 
+}
+
+func (s *CommandLineInterface) setActiveCmd(args []string) {
+	s.setStatusCmd(args, true)
+}
+
+func (s *CommandLineInterface) setInactiveCmd(args []string) {
+	s.setStatusCmd(args, false)
+}
+
+func (s *CommandLineInterface) setStatusCmd(args []string, status bool) {
+	if len(args) < 1 {
+		fmt.Println("Expected id")
+		return
+	}
+
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Printf("invalid id: %s\n", args[0])
+		return
+	}
+
+	req := models.UpdateIssueRequest{
+		Active: &status,
+	}
+
+	if err := s.PatchIssue(id, req); err != nil {
+		fmt.Printf("Failed to update issue: %s\n", err)
+	}
 }
 
 func (s *CommandLineInterface) getLogCmd(args []string) {
@@ -224,6 +269,15 @@ func (s *CommandLineInterface) createCmd(args []string) {
 		return
 	}
 
+}
+
+func (s *CommandLineInterface) PatchIssue(id int, upd_req models.UpdateIssueRequest) error {
+
+	err := s.issueService.PatchIssue(id, upd_req)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *CommandLineInterface) GetIssues(status models.IssueStatus) ([]models.Issue, error) {

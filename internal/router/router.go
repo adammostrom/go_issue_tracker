@@ -77,14 +77,33 @@ func (s *Router) AllRouting(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type LogRequest struct {
+	Entry string `json:"entry"`
+}
+
 func (s *Router) AddLogEntryHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		log.Printf("invalid id in path: %v", err)
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		log.Printf("invalid id in path: %v\n", err)
+		http.Error(w, "invalid id\n", http.StatusBadRequest)
 		return
 	}
-	err = s.issueService.AddLogEntry(int(id))
+
+	var req LogRequest
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "invalid JSON\n", http.StatusBadRequest)
+		return
+	}
+
+	err = s.issueService.AddLogEntry(int(id), req.Entry)
+	if err != nil {
+		log.Printf("Failed to add log entry: %s\n", req.Entry)
+		http.Error(w, "failed to add entry\n", http.StatusBadRequest)
+	}
+
+	w.WriteHeader(http.StatusOK)
+
 }
 
 // Gets a single issue from the database.
@@ -94,15 +113,15 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		log.Printf("invalid id in path: %v", err)
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		log.Printf("invalid id in path: %v\n", err)
+		http.Error(w, "invalid id\n", http.StatusBadRequest)
 		return
 	}
 
 	issue, err := s.issueService.GetIssueByID(int(id))
 	if err != nil {
-		log.Printf("failed to get issue with id: %d", id)
-		http.Error(w, "failed to get issue", http.StatusBadRequest)
+		log.Printf("failed to get issue with id: %d\n", id)
+		http.Error(w, "failed to get issue\n", http.StatusBadRequest)
 		return
 	}
 	if issue == nil {
@@ -130,7 +149,7 @@ func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 	if statusStr != "" {
 		parsed, err := models.ParseStatus(statusStr)
 		if err != nil {
-			http.Error(w, "invalid status", http.StatusBadRequest)
+			http.Error(w, "invalid status\n", http.StatusBadRequest)
 			return
 		}
 		status = parsed
@@ -138,8 +157,9 @@ func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 
 	issues, err := s.issueService.GetAllIssues(status)
 	if err != nil {
-		log.Printf("Failed to get issues")
+		log.Printf("Failed to get issues\n")
 		http.Error(w, "failed to get issues\n", http.StatusBadRequest)
+		return
 	}
 
 	var response []models.IssueResponse
@@ -161,8 +181,8 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		log.Printf("failed to decode request body: %v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
+		log.Printf("failed to decode request body: %v\n", err)
+		http.Error(w, "bad request\n", http.StatusBadRequest)
 		return
 	}
 
@@ -170,7 +190,7 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err_post != nil {
 		log.Printf("Failed to create issue -> issue = %v\n", issue)
-		http.Error(w, "failed to create new issuen", http.StatusBadRequest)
+		http.Error(w, "failed to create new issuen\n", http.StatusBadRequest)
 		return
 	}
 
@@ -191,8 +211,8 @@ func (s *Router) createIssueHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Router) deleteSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		log.Printf("invalid id in path: %v", err)
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		log.Printf("invalid id in path: %v\n", err)
+		http.Error(w, "invalid id\n", http.StatusBadRequest)
 		return
 	}
 
@@ -210,34 +230,34 @@ func (s *Router) deleteSingleIssueHandler(w http.ResponseWriter, r *http.Request
 func (s *Router) PatchIssueHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		log.Printf("invalid id in path: %v", err)
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		log.Printf("invalid id in path: %v\n", err)
+		http.Error(w, "invalid id\n", http.StatusBadRequest)
 		return
 	}
 
 	var updReq models.UpdateIssueRequest
 	if err := json.NewDecoder(r.Body).Decode(&updReq); err != nil {
-		log.Printf("failed to decode request body: %v", err)
-		http.Error(w, "bad request", http.StatusBadRequest)
+		log.Printf("failed to decode request body: %v\n", err)
+		http.Error(w, "bad request\n", http.StatusBadRequest)
 		return
 	}
 
 	if err := s.issueService.PatchIssue(int(id), updReq); err != nil {
-		log.Printf("failed to patch issue %d: %v", id, err)
-		http.Error(w, "failed to update issue", http.StatusBadRequest)
+		log.Printf("failed to patch issue %d: %v\n", id, err)
+		http.Error(w, "failed to update issue\n", http.StatusBadRequest)
 		return
 	}
 
 	updated, err := s.issueService.GetIssueByID(int(id))
 	if err != nil {
-		log.Printf("failed to fetch updated issue %d: %v", id, err)
-		http.Error(w, "failed to fetch updated issue", http.StatusInternalServerError)
+		log.Printf("failed to fetch updated issue %d: %v\n", id, err)
+		http.Error(w, "failed to fetch updated issue\n", http.StatusInternalServerError)
 		return
 	}
 
 	if updated == nil {
-		log.Printf("issue %d not found after update", id)
-		http.Error(w, "issue not found", http.StatusNotFound)
+		log.Printf("issue %d not found after update\n", id)
+		http.Error(w, "issue not found\n", http.StatusNotFound)
 		return
 	}
 
@@ -252,8 +272,8 @@ func (s *Router) GetLogsFromIssueHandler(w http.ResponseWriter, r *http.Request)
 
 	id, err := parseIDfromPath(r.URL.Path)
 	if err != nil {
-		log.Printf("invalid id in path: %v", err)
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		log.Printf("invalid id in path: %v\n", err)
+		http.Error(w, "invalid id\n", http.StatusBadRequest)
 		return
 	}
 

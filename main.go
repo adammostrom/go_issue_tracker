@@ -53,7 +53,7 @@ func main() {
 	case "start":
 		startCmd(os.Args[2:], issueService)
 	default:
-		cli.Run(cmds, os.Args[2:])
+		cli.Run(cmds, os.Args[1:])
 
 	}
 
