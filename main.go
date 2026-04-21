@@ -32,6 +32,7 @@ func main() {
 			return
 		}
 	}
+	defer db.Close()
 
 	// Initate and load the database schema
 	// Initiate the connection to the database (read/write) -> layer between service and db

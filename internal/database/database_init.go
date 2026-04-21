@@ -26,7 +26,7 @@ func OpenDB() (*sql.DB, error) {
 
 	// check existence
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, fmt.Errorf("database not initialized, run 'issuetracker init'")
+		return nil, fmt.Errorf("database not initialized")
 	}
 
 	return sql.Open("sqlite3", path)

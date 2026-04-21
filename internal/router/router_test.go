@@ -3,7 +3,6 @@ package router
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"issuetracker/internal/models"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +13,8 @@ type fakeIssueService struct {
 	called bool
 	status models.IssueStatus
 	issues []models.Issue
+	issue  *models.Issue
+	id_arg int
 	err    error
 }
 
@@ -28,6 +29,16 @@ type fakeIssueService struct {
 		AddLogEntry(id int, entry string) error
 	}
 */
+
+/*
+Before writing test, ask:
+
+What does this handler expect as input?
+What does it call?
+What does it return?
+*/
+
+// These simulate the service that the router is calling on. So the router.go handlers call these functions here.
 func (f *fakeIssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error) {
 	return nil, nil
 }
@@ -35,12 +46,20 @@ func (f *fakeIssueService) CreateNewIssue(req models.CreateIssueRequest) (*model
 func (f *fakeIssueService) GetAllIssues(status models.IssueStatus) ([]models.Issue, error) {
 	f.called = true
 	f.status = status
-	fmt.Println("fakeIssueService: GetAllIssues CALLED OK")
 	return f.issues, f.err
 }
 
 func (f *fakeIssueService) GetIssueByID(id int) (*models.Issue, error) {
-	return nil, nil
+	f.called = true
+
+	if f.err != nil {
+		return nil, f.err
+	}
+
+	if f.issue == nil || f.issue.Internal_ID != int64(id) {
+		return nil, nil
+	}
+	return f.issue, f.err
 }
 
 func (f *fakeIssueService) DeleteIssue(id int) error {
@@ -157,24 +176,84 @@ func TestGetIssuesHandler_ServiceError(t *testing.T) {
 // - look at your handler and identify branches:
 // Every decision point = test case.
 
+func setupGetSingleIssue(path string, service *fakeIssueService) *http.Response {
+
+	// Fake service, (dependency injection), the issue is here placed in the service so we can "GET" it.
+
+	service.issue = &models.Issue{
+
+		Internal_ID:  1,
+		External_Ref: "extref",
+		Title:        "title",
+		Description:  "description",
+		Active:       true,
+	}
+
+	router := &Router{issueService: service}
+
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+
+	w := httptest.NewRecorder()
+
+	router.getSingleIssueHandler(w, req)
+
+	res := w.Result()
+
+	return res
+}
+
 // HAPPY PATH
 
 func TestGetIssueHandler_OK(t *testing.T) {
-	// Fake service, (dependency injection)
-	service := &fakeIssueService{
-		issues: []models.Issue{
-			{Internal_ID: 1,
-				External_Ref: "TESTGETONE",
-				Title:        "testGetSingleIssue",
-				Description:  "TestCaseSingleIssueGET",
-				Active:       true,
-			},
-		},
+
+	service := &fakeIssueService{}
+
+	res := setupGetSingleIssue("/issues/1", service)
+
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d\n", res.StatusCode)
 	}
 
-	// Inject fake service into router
-	router := &Router{issueService: service}
+	// Flow correctness
+	if !service.called {
+		t.Fatalf("service not called\n")
+	}
 
-	// GET /issues
-	req := httptest.NewRequest(http.MethodGet, "/issues", nil)
+	var body models.IssueResponse
+	err := json.NewDecoder(res.Body).Decode(&body)
+	if err != nil {
+		t.Fatalf("failed to decode response\n")
+	}
+
+	if body.External_Ref != "extref" {
+		t.Fatalf("Wrong external ref or external ref is empty\n")
+	}
+}
+
+// Simulate wrong id, should return 400
+func TestGetSingleIssue_INVALID_ID(t *testing.T) {
+	service := &fakeIssueService{}
+
+	res := setupGetSingleIssue("/issues/a", service)
+
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", res.StatusCode)
+	}
+	if service.called {
+		t.Fatal("service should NOT be called on invalid input")
+	}
+
+}
+
+func TestGetSingleIssue_ISSUE_NOT_EXIST(t *testing.T) {
+	service := &fakeIssueService{}
+
+	res := setupGetSingleIssue("/issues/999", service)
+
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", res.StatusCode)
+	}
+	if !service.called {
+		t.Fatal("service SHOULD be called for issue not existing")
+	}
 }

@@ -35,18 +35,19 @@
     [ ] - for GET logs
 
 Implement LOGs handling for:
-[ ] - Handler
-    [ ] - CREATE
+[/] - Handler
+    [X] - CREATE
     [ ] - DELETE ALL
     [ ] - DELETE ONE (id? index? latest? first?)
     [ ] - GET ALL
     [ ] - GET latest/first (filtering)
-[ ] - CLI
-    [ ] - CREATE
+[/] - CLI
+    [X] - CREATE
     [ ] - DELETE ALL
     [ ] - DELETE ONE (id? index? latest? first?)
     [ ] - GET ALL
     [ ] - GET latest/first (filtering)
+[ ] - Implement functionality for erasing log entries 
 
 [ ] - Split models into their respective files (like Issue.go)
     [/] - add model verification (ex: validIssue or similar, check: invariants, example: id < 0 return false)
@@ -57,10 +58,10 @@ Implement LOGs handling for:
 [X] - change external_ref to string/text instead of int
 [X] - Apply logging entries for whenever a PATCH is made. (ex: 2026-03-25: active changed to false)
 
-[/] - Add validation and checking for:
+[X] - Add validation and checking for:
     [X] - Title (min 2, max 30)? -> Max 20
     [X] - Description: Also a max -> Max 30
-    [/] - External Ref, min, max, no symbols, only integers and characters
+    [X] - External Ref, min, max, no symbols, only integers and characters
 
 [ ] - Make a "clear log" for a specific issue.
 
@@ -73,7 +74,6 @@ Implement LOGs handling for:
     [ ] - Implement sorting by title (ascending/descending)
     [ ] - Implement sorting by external ref (asc/desc)
     [ ] - Implement sorting by time created (date generally)
-[ ] - Implement functionality for erasing log entries 
 
 [X] - Refactor CLI handling and cli command functions -> Command structure /build function in cli.go / 2026-04-14
 [ ] - Refactor printout in CLI for issues found
@@ -81,13 +81,18 @@ Implement LOGs handling for:
 [ ] - Add some type of "started/not started" or find a way how to make the active/deactive reflect 3 states: not started, started, finished 
 
 [ ] - Update README on how to build (using go install) to create into user path, so it can be run globally (binary is placed in local/usr/bin)
-[ ] - Add "INIT" for initiating the issuetracker where it creates a folder ".issuetracker/" and the db file inside it. 
-    [ ] - Implement checks if it exists, if user tries to do "issuetracker issues list" and its not been initiated, an error should reflect this
-    [ ] - Create "ux" for users failing a command and having to run "issuetracker init"
-    [ ] - BASICALLY: HAVE ONE DB INIT FUNCTION, AND ONE DB RUN FUNCTION. Have check for existing DB in the run, and if non existing, return fatal err.
+[REVERTED] - Add "INIT" for initiating the issuetracker where it creates a folder ".issuetracker/" and the db file inside it. 
+    [REVERTED] - Implement checks if it exists, if user tries to do "issuetracker issues list" and its not been initiated, an error should reflect this
+    [REVERTED] - Create "ux" for users failing a command and having to run "issuetracker init"
+    [REVERTED] - BASICALLY: HAVE ONE DB INIT FUNCTION, AND ONE DB RUN FUNCTION. Have check for existing DB in the run, and if non existing, return fatal err.
 
 
 # LOG
+
+## 2026-04-21
+Added test for GetSingleIssue, added cli functionality for adding a log entry, added functionality for clearing all logs for a specific issue in both cli and router, some small tweaks.
+For Future improvement: Make the PrintCommand in cli to work for the buildCommand struct so it recursively prints the commands, as of  now it wont work since the struct literal is still being constructed and Go does not allow self-reference inside composite literals, the subcommand map is not defined inside the struct until buildCommands return it. Solution: Define Commands (logCmd := &Command{}) outside (like separate structs) and in the "main" struct just refer to them, and then its possible to do: "logCmd.subcommands.print".
+
 
 ## 2026-04-21
 Added setting inactive and active in CLI (for router this is done with patch request). Added a getAllIssues test, small fixes and tweaks

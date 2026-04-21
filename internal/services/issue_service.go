@@ -22,6 +22,7 @@ type DatabaseInterface interface {
 	ModifyIssue(fields []interface{}, query string, id int) error
 	CreateIssue(issue *models.Issue) (*models.Issue, error)
 	CreateLogEntry(id int64, logEntry models.LogEntry) error
+	DeleteLogs(id int) error
 	DeleteIssue(id int) error
 	ExtRefExists(ref string) (bool, error)
 	GetLogs(id int) ([]models.LogEntry, error)
@@ -211,4 +212,13 @@ func (s *IssueService) AddLogEntry(id int, entry string) error {
 
 	return s.db_layer.CreateLogEntry(int64(id), logEntry)
 
+}
+
+func (s *IssueService) DeleteLogsFromIssue(id int) error {
+	_, err := s.GetIssueByID(id)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	return s.db_layer.DeleteLogs(id)
 }

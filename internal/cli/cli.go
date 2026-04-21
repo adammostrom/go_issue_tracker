@@ -17,6 +17,7 @@ type IssueServiceInterface interface {
 	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
 	GetLogsFromIssue(id int) ([]models.LogEntry, error)
 	AddLogEntry(id int, entry string) error
+	DeleteLogsFromIssue(id int) error
 }
 
 type CommandLineInterface struct {
@@ -77,7 +78,7 @@ func (s *CommandLineInterface) BuildCommands() map[string]*Command {
 		"log": {
 			name: "log",
 			operation: func(args []string) {
-				fmt.Println("Available subcommands: get, create")
+				fmt.Println("Available subcommands: get, create, delete")
 			},
 			subcommands: map[string]*Command{
 				"get": {
@@ -87,6 +88,10 @@ func (s *CommandLineInterface) BuildCommands() map[string]*Command {
 				"create": {
 					name:      "create",
 					operation: s.createLogCmd,
+				},
+				"delete": {
+					name:      "delete",
+					operation: s.deleteLogsCmd,
 				},
 			},
 		},
@@ -202,15 +207,24 @@ func (s *CommandLineInterface) getLogCmd(args []string) {
 
 }
 
-func (s *CommandLineInterface) createLogCmd(args []string) {
-
-}
-
-func (s *CommandLineInterface) logCmd(args []string) {
+func (s *CommandLineInterface) deleteLogsCmd(args []string) {
 
 	if len(args) < 1 {
-		fmt.Println("expected subcommand: ")
+		fmt.Println("Expected id as argument to command!")
+		return
 	}
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Printf("invalid id: %s\n", args[0])
+		fmt.Println(err)
+		return
+	}
+	err = s.DeleteLogsForIssue(id)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 }
 
 // Get one issue
@@ -346,21 +360,39 @@ func (s *CommandLineInterface) CreateIssue() error {
 	return nil
 }
 
-func (s *CommandLineInterface) CreateLogEntry(id int, entry string) error {
-	reader := bufio.NewReader(os.Stdin)
-
-	fmt.Println("Entry: ")
-	entry, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Printf("Could not read entry: %s\n", entry)
-		return err
+func (s *CommandLineInterface) createLogCmd(args []string) {
+	if len(args) < 2 {
+		fmt.Println("Expected id and entry as arguments to command!")
+		return
 	}
-	err = s.issueService.AddLogEntry(id, entry)
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Printf("invalid id: %s\n", args[0])
+		fmt.Println(err)
+		return
+	}
+
+	entry := args[1]
+
+	err = s.CreateLogEntry(id, entry)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Log entry created successfully")
+}
+
+func (s *CommandLineInterface) CreateLogEntry(id int, entry string) error {
+	err := s.issueService.AddLogEntry(id, entry)
 	if err != nil {
 		fmt.Printf("Failed to create log entry: %s", err)
 		return err
 	}
 	return nil
+}
+
+func (s *CommandLineInterface) DeleteLogsForIssue(id int) error {
+	return s.issueService.DeleteLogsFromIssue(id)
 }
 
 // TODO: 2026-04-14: come back to update this. Somewhat clunky.
