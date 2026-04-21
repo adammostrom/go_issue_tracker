@@ -29,10 +29,6 @@ func NewCLI(s IssueServiceInterface) *CommandLineInterface {
 	cli := &CommandLineInterface{
 		issueService: s,
 	}
-	/* 	var commands = Command{
-		Call: "list",
-		Op:   cli.listCmd, // ✅ safe, cli already exists
-	} */
 	return cli
 }
 
