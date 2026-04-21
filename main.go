@@ -1,106 +1,92 @@
 package main
 
 import (
-	// Provides SQL database functionality
-	// For printing messages
-	// For printing messages
-
-	//"issuetracker/internal/db"
-	handlers "issuetracker/internal/backend_logic"
-	db "issuetracker/internal/database_layer"
-	"issuetracker/internal/models"
-	"issuetracker/internal/services"
+	"database/sql"
+	"flag"
+	"fmt"
+	"issuetracker/internal/cli"
+	database "issuetracker/internal/database"
+	router "issuetracker/internal/router"
+	services "issuetracker/internal/services"
 	"log"
 	"net/http"
+	"os"
 
-	_ "github.com/lib/pq" // Import pq for PostgreSQL driver
+	_ "github.com/mattn/go-sqlite3"
+	//_ "github.com/lib/pq" // Import pq for PostgreSQL driver
 )
 
 // Main does only one job: start the server and connect routes to handlers.
 // Only does initialization: database connection, routing, and starting the HTTP server.
-// Doesnt do actual “business work”.
 func main() {
 
-	// 2026-03-12 -> CREATE NEW ISSUE:
+	var db *sql.DB
+	var err error
 
-	s := handlers.IssueEndpoint{}
+	// No need for INIT
+	db, err = database.OpenDB()
+	if err != nil {
+		db, err = database.InitDB()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+	defer db.Close()
 
-	// TEMPORARY STORAGE
-	var issues []models.Issue
-	var nextID = 1
+	// Initate and load the database schema
+	// Initiate the connection to the database (read/write) -> layer between service and db
+	db_connection := database.NewDatabaseConnection(db)
 
-	var issue = s.CreateNewIssue("First Test", "just testing", int64(nextID))
+	// Create a service struct that delegates to the database for read/write
+	issueService := services.NewIssueService(db_connection)
 
-	issues = append(issues, issue)
+	cli := cli.NewCLI(issueService)
 
-	service := services.IssueService{
-		Issues: &issues,
+	cmds := cli.BuildCommands()
+
+	if len(os.Args) < 2 {
+		cli.PrintCommands(cmds, 0)
+		return
 	}
 
-	http.HandleFunc("/issues", service.MainRouter)
+	switch os.Args[1] {
+	case "start":
+		startCmd(os.Args[2:], issueService)
+	default:
+		cli.Run(cmds, os.Args[1:])
+
+	}
+
+}
+
+// Start the HTTP server
+func startCmd(args []string, issueService *services.IssueService) {
+	fs := flag.NewFlagSet("start", flag.ExitOnError)
+
+	// Create a router to delegate requests to the server
+	r := router.NewRouter(issueService)
+
+	fs.Parse(args)
+
+	// set up the HTTP server
+	mux := http.NewServeMux()
+
+	server := &http.Server{
+		Addr:    ":8080", // Add configuration if want to change ports etc.
+		Handler: mux,
+	}
+
+	// Delegates all HTTP requests to /issues* to the IssuesHandler
+	mux.HandleFunc("/issues", r.AllRouting)  // for /issues exact (list, create)
+	mux.HandleFunc("/issues/", r.AllRouting) // for /issues/{id} (single issue)
 
 	log.Println("Connected successfully — server starting...")
 
 	// Serve the HTML frontend
-	http.Handle("/", http.FileServer(http.Dir("./static")))
+	mux.Handle("/", http.FileServer(http.Dir("./static")))
 
 	// Keep server running on port 8080
 	log.Println("Server running at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
-
-	// DATABASE
-
-	/*
-		host=/var/run/postgresql forces a Unix socket.
-		peer auth sees you’re adam on the system and lets you in without a password.
-		No password= needed.
-		This is the easiest and safe for local dev.
-	*/
-	connStr := "user=adam dbname=servicetestess host=/var/run/postgresql sslmode=disable"
-
-	// connect using the datapase package, which contains the function OpenDB in db_connect.go
-	db_connect, err := db.OpenDB(connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db_connect.Close()
-
-	// Add functionality for frontend later.
-	//getAllDevices(db_connect)
-	//getAllDeviceTypes((db_connect))
+	log.Fatal(server.ListenAndServe())
 }
-
-/* func getAllDevices(db_connect *sql.DB) {
-	deviceStore := db.NewDeviceStore(db_connect)
-
-	// Important to not ignore the error, if GetAll fails, devices will default to "nil" (none)
-	// And this we need/want to handle.
-	devices, err := deviceStore.GetAll()
-	if err != nil {
-		log.Println("GetAll failed:", err)
-		return
-	}
-
-	for _, d := range devices {
-		fmt.Printf("DeviceID: %d DeviceType: %s \n", d.DeviceID, d.DeviceType)
-	}
-
-}
-
-func getAllDeviceTypes(db_connect *sql.DB) {
-	deviceTypeStore := db.NewDeviceTypeStore(db_connect)
-
-	// Important to not ignore the error, if GetAll fails, devices will default to "nil" (none)
-	// And this we need/want to handle.
-	devices, err := deviceTypeStore.GetAll()
-	if err != nil {
-		log.Println("GetAll failed:", err)
-		return
-	}
-
-	for _, dt := range devices {
-		fmt.Printf("DeviceType: %s \n", dt.DeviceType)
-	}
-
-}
-*/
