@@ -89,6 +89,18 @@ Implement LOGs handling for:
 
 # LOG
 
+## 2026-04-22
+
+TODO: Add new field "completed/finished" as boolean. There will be 4 conditions:
+
+FINISHED 	 ACTIVE
+	0  		    0     = not started "[]" but set as inactive
+	0 			1     = started "[/]" 
+	1 			0     = archived (finished but hidden for some reason)
+	1 			1     = completed and still active "[X]"
+		 
+
+
 ## 2026-04-21
 Added test for GetSingleIssue, added cli functionality for adding a log entry, added functionality for clearing all logs for a specific issue in both cli and router, some small tweaks.
 For Future improvement: Make the PrintCommand in cli to work for the buildCommand struct so it recursively prints the commands, as of  now it wont work since the struct literal is still being constructed and Go does not allow self-reference inside composite literals, the subcommand map is not defined inside the struct until buildCommands return it. Solution: Define Commands (logCmd := &Command{}) outside (like separate structs) and in the "main" struct just refer to them, and then its possible to do: "logCmd.subcommands.print".
