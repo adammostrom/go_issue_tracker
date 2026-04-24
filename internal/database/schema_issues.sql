@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS Issues (
     external_ref TEXT NULL,
     title TEXT,
     description TEXT,
-    active INTEGER DEFAULT 0
+    active INTEGER DEFAULT 0,
+    progress INTEGER
 );
 
 
@@ -20,6 +21,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_external_ref ON Issues(external_ref);
 DROP VIEW IF EXISTS Active;
 
 CREATE VIEW Active AS 
-SELECT external_ref, title
+SELECT id, external_ref, title
 FROM Issues i
 WHERE i.Active = 1;

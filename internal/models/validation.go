@@ -1,6 +1,8 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const TITLE_MIN = 2
 const TITLE_MAX = 30
@@ -47,4 +49,30 @@ func (l *LogEntry) ValidateEntry() error {
 		return fmt.Errorf("A log entry must be between %d and %d\n", DESCR_MIN, DESCR_MAX)
 	}
 	return nil
+}
+
+func (p *ProgressStatus) IsValidProgress() bool {
+	switch *p {
+	case Idle:
+		return true
+	case Started:
+		return true
+	case Finished:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *ProgressStatus) String() string {
+	switch *p {
+	case Idle:
+		return "idle"
+	case Started:
+		return "started"
+	case Finished:
+		return "finished"
+	default:
+		return "unknown"
+	}
 }

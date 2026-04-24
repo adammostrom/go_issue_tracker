@@ -89,6 +89,18 @@ Implement LOGs handling for:
 
 # LOG
 
+## 2026-04-24
+The completed/finished is better turned to an enum:
+
+type Status struct {
+    status int
+}
+
+const Status pending 0
+const Status started 1
+const Status finished 2
+
+
 ## 2026-04-22
 
 TODO: Add new field "completed/finished" as boolean. There will be 4 conditions:

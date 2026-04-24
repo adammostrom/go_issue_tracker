@@ -405,6 +405,7 @@ func (s *CommandLineInterface) printIssue(issue *models.Issue) error {
 	fmt.Printf("External Reference: %s\n", issue.External_Ref)
 	fmt.Printf("Description:        %s\n", issue.Description)
 	fmt.Printf("Active Status:      %t\n", issue.Active)
+	fmt.Printf("Progrss:            %s\n", issue.Progress.String())
 	fmt.Println("-------------------------")
 
 	return nil
