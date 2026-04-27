@@ -66,6 +66,7 @@ func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Is
 		Description:  req.Description,
 		Log:          logEntries,
 		Active:       true,
+		Progress:     models.Idle,
 	}
 
 	if err := issue.ValidateIssue(); err != nil {
@@ -163,6 +164,11 @@ func (s *IssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) err
 		str := fmt.Sprintf("%t", *upd_req.Active)
 		logEntries = append(logEntries, models.LogEntry{Timestamp: timestamp, Entry: "Active status changed to: " + str})
 		i++
+	}
+	if upd_req.Progress != nil {
+		updated_fields = append(updated_fields, *upd_req.Progress)
+		query += fmt.Sprintf("progress=$%d", i)
+		logEntries = append(logEntries, models.LogEntry{Timestamp: timestamp, Entry: "Progress changed to: " + upd_req.Progress.String()})
 	}
 
 	query = strings.TrimSuffix(query, ",")

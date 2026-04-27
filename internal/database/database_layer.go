@@ -47,9 +47,8 @@ func (s *DatabaseConnection) GetIssues(query string) ([]models.Issue, error) {
 
 	for rows.Next() {
 		var i models.Issue
-		rows.Scan(&i.Internal_ID, &i.External_Ref, &i.Title, &i.Description, &i.Active) // Skip log for now
+		rows.Scan(&i.Internal_ID, &i.External_Ref, &i.Title, &i.Description, &i.Active, &i.Progress) // Skip log for now
 		issues = append(issues, i)
-		fmt.Printf("i: %v\n", i)
 	}
 	return issues, nil
 }
@@ -89,8 +88,8 @@ func (s *DatabaseConnection) GetLogs(id int) ([]models.LogEntry, error) {
 // 2026-03-24: Returns the pointer only so the functions are the same as in service and can be mocked
 func (s *DatabaseConnection) CreateIssue(issue *models.Issue) (*models.Issue, error) {
 
-	stmt := `INSERT INTO Issues(title, external_ref, description, active) VALUES (?, ?, ?, ?)`
-	res, err := s.db.Exec(stmt, issue.Title, issue.External_Ref, issue.Description, 1)
+	stmt := `INSERT INTO Issues(title, external_ref, description, active, progress) VALUES (?, ?, ?, ?, ?)`
+	res, err := s.db.Exec(stmt, issue.Title, issue.External_Ref, issue.Description, 1, issue.Progress)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +127,7 @@ func (s *DatabaseConnection) GetIssue(id int) (*models.Issue, error) {
 
 	// TODO: Dont return everything (*), create a VIEW in SQL and return from that instead
 	err := s.db.QueryRow(
-		"SELECT * FROM Issues WHERE id = $1", id).Scan(&issue.Internal_ID, &issue.External_Ref, &issue.Title, &issue.Description, &issue.Active)
+		"SELECT * FROM Issues WHERE id = $1", id).Scan(&issue.Internal_ID, &issue.External_Ref, &issue.Title, &issue.Description, &issue.Active, &issue.Progress)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
