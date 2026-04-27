@@ -47,9 +47,8 @@ func (s *DatabaseConnection) GetIssues(query string) ([]models.Issue, error) {
 
 	for rows.Next() {
 		var i models.Issue
-		rows.Scan(&i.Internal_ID, &i.External_Ref, &i.Title, &i.Description, &i.Active) // Skip log for now
+		rows.Scan(&i.Internal_ID, &i.External_Ref, &i.Title, &i.Description, &i.Active, &i.Progress) // Skip log for now
 		issues = append(issues, i)
-		fmt.Printf("i: %v\n", i)
 	}
 	return issues, nil
 }

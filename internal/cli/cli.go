@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"issuetracker/internal/models"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -48,6 +47,7 @@ func (s *CommandLineInterface) BuildCommands() map[string]*Command {
 			name:      "get",
 			operation: s.getCmd,
 		},
+		// TODO: started, idle, completed
 		"set": {
 			name: "set",
 			operation: func(args []string) {
@@ -148,139 +148,6 @@ func (s *CommandLineInterface) dispatch(cmds map[string]*Command, args []string)
 
 }
 
-func (s *CommandLineInterface) setActiveCmd(args []string) {
-	s.setStatusCmd(args, true)
-}
-
-func (s *CommandLineInterface) setInactiveCmd(args []string) {
-	s.setStatusCmd(args, false)
-}
-
-func (s *CommandLineInterface) setStatusCmd(args []string, status bool) {
-	if len(args) < 1 {
-		fmt.Println("Expected id")
-		return
-	}
-
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
-		return
-	}
-
-	req := models.UpdateIssueRequest{
-		Active: &status,
-	}
-
-	if err := s.PatchIssue(id, req); err != nil {
-		fmt.Printf("Failed to update issue: %s\n", err)
-	}
-}
-
-func (s *CommandLineInterface) getLogCmd(args []string) {
-	if len(args) < 1 {
-		fmt.Println("Expected id as argument to command!")
-		return
-	}
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
-		fmt.Println(err)
-		return
-	}
-	logs, err := s.issueService.GetLogsFromIssue(id)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if len(logs) == 0 {
-		fmt.Println("No logs found")
-		return
-	}
-	for _, log := range logs {
-		fmt.Printf("log: %v\n", log)
-	}
-
-}
-
-func (s *CommandLineInterface) deleteLogsCmd(args []string) {
-
-	if len(args) < 1 {
-		fmt.Println("Expected id as argument to command!")
-		return
-	}
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
-		fmt.Println(err)
-		return
-	}
-	err = s.DeleteLogsForIssue(id)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-}
-
-// Get one issue
-func (s *CommandLineInterface) getCmd(args []string) {
-
-	if len(args) < 1 {
-		fmt.Println("Expected id as argument to command!")
-		return
-	}
-
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
-		fmt.Println(err)
-		return
-	}
-	issue, err := s.GetIssue(id)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	s.printIssue(issue)
-}
-
-// Get all issues
-func (s *CommandLineInterface) listCmd(args []string) {
-
-	status := models.StatusDefault
-
-	if len(args) > 0 {
-		parsed, err := models.ParseStatus(args[0])
-		if err != nil {
-			fmt.Println("invalid status")
-			return
-		}
-		status = parsed
-	}
-	issues, err := s.GetIssues(status)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if len(issues) == 0 {
-		fmt.Println("No issues found")
-	}
-	for _, issue := range issues {
-		s.printIssue(&issue)
-	}
-}
-
-func (s *CommandLineInterface) createCmd(args []string) {
-
-	err := s.CreateIssue()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-}
-
 func (s *CommandLineInterface) PatchIssue(id int, upd_req models.UpdateIssueRequest) error {
 
 	err := s.issueService.PatchIssue(id, upd_req)
@@ -306,45 +173,74 @@ func (s *CommandLineInterface) GetIssue(id int) (*models.Issue, error) {
 	return issue, nil
 }
 
-func (s *CommandLineInterface) CreateIssue() error {
-	var issue_request models.CreateIssueRequest
+// TODO: 2026-04-27: Split into separate functions that are each called here by this function, with each of the having validation at the end.
 
-	reader := bufio.NewReader(os.Stdin)
+func readTitle(reader *bufio.Reader) (string, error) {
 
 	fmt.Print("Title: ")
 	title, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Printf("Could not read title: %s\n", title)
-		return err
+		return "", err // TODO: Fix to not return empty string
 	}
-	issue_request.Title = strings.TrimSpace(title)
-
-	for {
-		fmt.Print("External Reference: ")
-		external_ref, err := reader.ReadString('\n')
-
-		if err != nil {
-			fmt.Printf("Could not read external ref : %s\n", external_ref)
-			continue
-		}
-
-		err = models.ValidateExternalRef(external_ref)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		issue_request.External_Ref = strings.TrimSpace(external_ref)
-		break
+	err = models.ValidateTitle(title)
+	if err != nil {
+		return "", err
 	}
+	return strings.TrimSpace(title), nil
+}
 
+func readExtRef(reader *bufio.Reader) (string, error) {
+	fmt.Print("External Reference: ")
+	external_ref, err := reader.ReadString('\n')
+
+	if err != nil {
+		fmt.Printf("Could not read external ref : %s\n", external_ref)
+		return "", err
+	}
+	err = models.ValidateExternalRef(external_ref)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(external_ref), nil
+}
+
+func readDescription(reader *bufio.Reader) (string, error) {
 	fmt.Print("Description: ")
 	desc, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Printf("Could not read description : %s\n", desc)
+		return "", err
+	}
+	err = models.ValidateDescription(desc)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(desc), nil
+}
+
+func (s *CommandLineInterface) CreateIssue() error {
+	var issue_request models.CreateIssueRequest
+
+	reader := bufio.NewReader(os.Stdin)
+
+	title, err := readValidated(reader, "Title: ", models.ValidateTitle)
+	if err != nil {
 		return err
 	}
-	issue_request.Description = strings.TrimSpace(desc)
+	issue_request.Title = title
+
+	externalRef, err := readValidated(reader, "External Reference: ", models.ValidateExternalRef)
+	if err != nil {
+		return err
+	}
+	issue_request.External_Ref = externalRef
+
+	description, err := readValidated(reader, "Description: ", models.ValidateDescription)
+	if err != nil {
+		return err
+	}
+	issue_request.Description = description
 
 	issue, err := s.issueService.CreateNewIssue(issue_request)
 	if err != nil {
@@ -356,26 +252,25 @@ func (s *CommandLineInterface) CreateIssue() error {
 	return nil
 }
 
-func (s *CommandLineInterface) createLogCmd(args []string) {
-	if len(args) < 2 {
-		fmt.Println("Expected id and entry as arguments to command!")
-		return
-	}
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
-		fmt.Println(err)
-		return
-	}
+func readValidated(reader *bufio.Reader, prompt string, validate func(string) error) (string, error) {
 
-	entry := args[1]
+	for {
+		fmt.Print(prompt)
 
-	err = s.CreateLogEntry(id, entry)
-	if err != nil {
-		fmt.Println(err)
-		return
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+
+		input = strings.TrimSpace(input)
+
+		if err := validate(input); err != nil {
+			fmt.Println(err)
+			continue // Ask again
+		}
+
+		return input, nil
 	}
-	fmt.Println("Log entry created successfully")
 }
 
 func (s *CommandLineInterface) CreateLogEntry(id int, entry string) error {
@@ -409,4 +304,44 @@ func (s *CommandLineInterface) printIssue(issue *models.Issue) error {
 	fmt.Println("-------------------------")
 
 	return nil
+}
+
+func (s *CommandLineInterface) simplePrintIssue(issue *models.Issue) error {
+	if issue == nil {
+		return nil
+	}
+
+	fmt.Println(simplePrintString(issue))
+	return nil
+}
+
+func simplePrintString(i *models.Issue) string {
+	return fmt.Sprintf(
+		"%s - %d %s %s %s",
+		progressSymbol(i.Progress),
+		i.Internal_ID,
+		layoutDistancePrint(i.External_Ref, models.EXTERNAL_MAX),
+		layoutDistancePrint(i.Title, models.TITLE_MAX),
+		i.Description,
+	)
+}
+
+func layoutDistancePrint(param string, max int) string {
+	dist_param := max - len(param)
+	distance := strings.Repeat(" ", dist_param)
+
+	return param + distance
+}
+
+func progressSymbol(p models.ProgressStatus) string {
+	switch p {
+	case models.Idle:
+		return "[ ]"
+	case models.Started:
+		return "[/]"
+	case models.Finished:
+		return "[X]"
+	default:
+		return "[-]"
+	}
 }
