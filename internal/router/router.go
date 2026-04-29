@@ -101,7 +101,7 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	issue, err := s.issueService.GetIssueByID(int(id))
 	if err != nil {
-		log.Printf("failed to get issue with id: %d\n", id)
+		log.Printf("failed to get issue with id: %d. Cause: %s\n", id, err)
 		http.Error(w, "failed to get issue\n", http.StatusBadRequest)
 		return
 	}

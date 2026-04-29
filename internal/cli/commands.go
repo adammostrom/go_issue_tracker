@@ -6,23 +6,17 @@ import (
 	"strconv"
 )
 
-func (s *CommandLineInterface) setActiveCmd(args []string) {
+func (s *CommandLine) setActiveCmd(args []string) {
 	s.setStatusCmd(args, true)
 }
 
-func (s *CommandLineInterface) setInactiveCmd(args []string) {
+func (s *CommandLine) setInactiveCmd(args []string) {
 	s.setStatusCmd(args, false)
 }
 
-func (s *CommandLineInterface) setStatusCmd(args []string, status bool) {
-	if len(args) < 1 {
-		fmt.Println("Expected id")
-		return
-	}
-
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
+func (s *CommandLine) setStatusCmd(args []string, status bool) {
+	id, err := getIdFromInput(args)
+	if err != nil || id == -1 {
 		return
 	}
 
@@ -35,32 +29,24 @@ func (s *CommandLineInterface) setStatusCmd(args []string, status bool) {
 	}
 }
 
-func (s *CommandLineInterface) modifyCmd(args []string) {
-	if len(args) < 1 {
-		fmt.Println("Expected id as argument to command!")
-		return
-	}
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
-		fmt.Println(err)
+func (s *CommandLine) modifyCmd(args []string) {
+	id, err := getIdFromInput(args)
+	if err != nil || id == -1 {
 		return
 	}
 
-	return s.modifyIssueHelper(id)
+	err = s.modifyIssueHelper(id)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
-func (s *CommandLineInterface) getLogCmd(args []string) {
-	if len(args) < 1 {
-		fmt.Println("Expected id as argument to command!")
+func (s *CommandLine) getLogCmd(args []string) {
+	id, err := getIdFromInput(args)
+	if err != nil || id == -1 {
 		return
 	}
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
-		fmt.Println(err)
-		return
-	}
+
 	logs, err := s.issueService.GetLogsFromIssue(id)
 	if err != nil {
 		fmt.Println(err)
@@ -76,18 +62,42 @@ func (s *CommandLineInterface) getLogCmd(args []string) {
 
 }
 
-func (s *CommandLineInterface) deleteLogsCmd(args []string) {
-
-	if len(args) < 1 {
-		fmt.Println("Expected id as argument to command!")
+func (s *CommandLine) setProgressCmd(args []string) {
+	id, err := getIdFromInput(args)
+	if err != nil || id == -1 {
 		return
 	}
-	id, err := strconv.Atoi(args[0])
+	if len(args) < 2 {
+		fmt.Println("Expected subcommand: idle, started, completed!")
+	}
+
+	statusStr := args[1]
+
+	status, err := models.ParseProgressStatus(statusStr)
 	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
 		fmt.Println(err)
 		return
 	}
+
+	if status.IsValidProgress() {
+		err = s.setProgress(id, status)
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else {
+		fmt.Println("Not a valid progress status")
+		return
+	}
+
+}
+
+func (s *CommandLine) deleteLogsCmd(args []string) {
+
+	id, err := getIdFromInput(args)
+	if err != nil || id == -1 {
+		return
+	}
+
 	err = s.DeleteLogsForIssue(id)
 	if err != nil {
 		fmt.Println(err)
@@ -97,29 +107,23 @@ func (s *CommandLineInterface) deleteLogsCmd(args []string) {
 }
 
 // Get one issue
-func (s *CommandLineInterface) getCmd(args []string) {
+func (s *CommandLine) getCmd(args []string) {
 
-	if len(args) < 1 {
-		fmt.Println("Expected id as argument to command!")
+	id, err := getIdFromInput(args)
+	if err != nil || id == -1 {
 		return
 	}
 
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
-		fmt.Println(err)
-		return
-	}
 	issue, err := s.GetIssue(id)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	s.printIssue(issue)
+	printIssue(issue)
 }
 
 // Get all issues
-func (s *CommandLineInterface) listCmd(args []string) {
+func (s *CommandLine) listCmd(args []string) {
 
 	status := models.StatusDefault
 
@@ -140,11 +144,11 @@ func (s *CommandLineInterface) listCmd(args []string) {
 		fmt.Println("No issues found")
 	}
 	for _, issue := range issues {
-		s.simplePrintIssue(&issue)
+		simplePrintIssue(&issue, s.issueService)
 	}
 }
 
-func (s *CommandLineInterface) createCmd(args []string) {
+func (s *CommandLine) createCmd(args []string) {
 
 	err := s.CreateIssue()
 	if err != nil {
@@ -154,15 +158,15 @@ func (s *CommandLineInterface) createCmd(args []string) {
 
 }
 
-func (s *CommandLineInterface) createLogCmd(args []string) {
-	if len(args) < 2 {
-		fmt.Println("Expected id and entry as arguments to command!")
+func (s *CommandLine) createLogCmd(args []string) {
+
+	id, err := getIdFromInput(args)
+	if err != nil || id == -1 {
 		return
 	}
-	id, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("invalid id: %s\n", args[0])
-		fmt.Println(err)
+
+	if len(args) < 2 {
+		fmt.Println("Expected entry as arguments to command!")
 		return
 	}
 
@@ -174,4 +178,18 @@ func (s *CommandLineInterface) createLogCmd(args []string) {
 		return
 	}
 	fmt.Println("Log entry created successfully")
+}
+
+func getIdFromInput(args []string) (int, error) {
+	if len(args) < 1 {
+		fmt.Println("Expected id as argument to command!")
+		return -1, nil
+	}
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Printf("invalid id: %s\n", args[0])
+		fmt.Println(err)
+		return -1, err
+	}
+	return id, nil
 }

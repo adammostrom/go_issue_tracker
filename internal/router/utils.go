@@ -28,12 +28,21 @@ func parseIDfromPath(path string) (int64, error) {
 // Helpers
 
 func issueToIssueResponse(issue models.Issue) models.IssueResponse {
+
 	resp := models.IssueResponse{
 		Internal_ID:  issue.Internal_ID,
-		External_Ref: issue.External_Ref,
+		External_Ref: deref(issue.External_Ref, "null"),
 		Title:        issue.Title,
 		Description:  issue.Description,
 		Active:       issue.Active,
 	}
 	return resp
+}
+
+// Handling null values for external ref.
+func deref(s *string, fallback string) string {
+	if s == nil {
+		return fallback
+	}
+	return *s
 }

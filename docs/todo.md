@@ -1,5 +1,16 @@
 # TODO
 
+[ ] - Implement testing in ROUTER
+    [ ] - GET ALL
+    [ ] - GET ONE
+    [ ] - DELETE
+    [ ] - PATCH
+    [ ] - CREATE
+    [ ] - GET ALL LOGS
+    [ ] - GET ONE LOG
+    [ ] - DELETE ALL LOGS
+    [ ] - CREATE LOG
+
 [/] - Implement json convertion functions in handler
     [ ] - function: backend struct to json response 
 
@@ -34,6 +45,8 @@
     [ ] - for GET one
     [ ] - for GET logs
 
+[X] - Implement PATCH in CLI
+
 Implement LOGs handling for:
 [/] - Handler
     [X] - CREATE
@@ -52,8 +65,8 @@ Implement LOGs handling for:
 [ ] - Split models into their respective files (like Issue.go)
     [/] - add model verification (ex: validIssue or similar, check: invariants, example: id < 0 return false)
 
-[/] - Make it so that external_ref turns the string into all lowercase before parsing, but all capital for viewing
-    [/] - Make restriction on external_ref to certain length, no symbols (only numbers and digits) etc, include in model verification.
+[X] - Make it so that external_ref turns the string into all lowercase before parsing, but all capital for viewing
+    [X] - Make restriction on external_ref to certain length, no symbols (only numbers and digits) etc, include in model verification.
     
 [X] - change external_ref to string/text instead of int
 [X] - Apply logging entries for whenever a PATCH is made. (ex: 2026-03-25: active changed to false)
@@ -68,7 +81,10 @@ Implement LOGs handling for:
 [/] - Implement logic to filter issues based on "active", "time created" etc.
     [X] - Implement filtering for active
     [X] - Implement filtering for deacrive
-    [ ] - Implement filtering for time created (age) 
+    [ ] - Implement filtering for started
+    [ ] - Implement filtering for completed
+    [ ] - Implement filtering for idle
+
 
 [ ] - Implement sorting
     [ ] - Implement sorting by title (ascending/descending)
@@ -76,9 +92,10 @@ Implement LOGs handling for:
     [ ] - Implement sorting by time created (date generally)
 
 [X] - Refactor CLI handling and cli command functions -> Command structure /build function in cli.go / 2026-04-14
-[ ] - Refactor printout in CLI for issues found
+[/] - Refactor printout in CLI for issues found
 
-[ ] - Add some type of "started/not started" or find a way how to make the active/deactive reflect 3 states: not started, started, finished 
+[X] - Add some type of "started/not started" or find a way how to make the active/deactive reflect 3 states: not started, started, finished 
+    -> New field in issue (ProgressStatus) 2026-04-24
 
 [ ] - Update README on how to build (using go install) to create into user path, so it can be run globally (binary is placed in local/usr/bin)
 [REVERTED] - Add "INIT" for initiating the issuetracker where it creates a folder ".issuetracker/" and the db file inside it. 
@@ -88,6 +105,13 @@ Implement LOGs handling for:
 
 
 # LOG
+
+## 2026-04-29
+
+External ref, make it optional or not? point of it was to introduce a unique "key" to search by, but if its optional, it will fail uniqueness (empty string) or if it is simply none? One solution is to give it a random number if input is empty.
+---> Solved: Made external ref accept empty values as null, but still catch duplicates upon value entered. External ref is now string pointer in models.
+
+Implemented modify in cli, small cleanup, bugfix, refactor.
 
 ## 2026-04-24
 The completed/finished is better turned to an enum:

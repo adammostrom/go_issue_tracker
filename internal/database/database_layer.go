@@ -203,7 +203,11 @@ func (s *DatabaseConnection) DeleteLogs(id int) error {
 
 // TODO: implement
 
-func (s *DatabaseConnection) ExtRefExists(ref string) (bool, error) {
+func (s *DatabaseConnection) ExtRefExists(ref *string) (bool, error) {
+
+	if ref == nil {
+		return false, nil
+	}
 
 	var exists bool
 

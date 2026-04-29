@@ -24,7 +24,7 @@ type DatabaseInterface interface {
 	CreateLogEntry(id int64, logEntry models.LogEntry) error
 	DeleteLogs(id int) error
 	DeleteIssue(id int) error
-	ExtRefExists(ref string) (bool, error)
+	ExtRefExists(ref *string) (bool, error)
 	GetLogs(id int) ([]models.LogEntry, error)
 }
 
@@ -55,11 +55,12 @@ func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Is
 	}
 
 	// TODO 2026-04-03 come back and write a proper function to clean the external ref. example: "Code 234" -> "CODE234"
-	req.External_Ref = strings.TrimSpace(req.External_Ref)
-	req.External_Ref = strings.ReplaceAll(req.External_Ref, " ", "")
-	req.External_Ref = strings.ToUpper(req.External_Ref)
+	/* 	req.External_Ref = strings.TrimSpace(req.External_Ref)
+	   	req.External_Ref = strings.ReplaceAll(req.External_Ref, " ", "")
+	   	req.External_Ref = strings.ToUpper(req.External_Ref) */
 
 	// Internal ID generated at db insert
+
 	issue := &models.Issue{
 		Title:        req.Title,
 		External_Ref: req.External_Ref,
@@ -141,7 +142,7 @@ func (s *IssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) err
 		i++
 	}
 	if upd_req.External_Ref != nil {
-		if err := models.ValidateExternalRef(*upd_req.External_Ref); err != nil {
+		if err := models.ValidateExternalRefWrapper(*upd_req.External_Ref); err != nil {
 			return err
 		}
 		updated_fields = append(updated_fields, *upd_req.External_Ref)
