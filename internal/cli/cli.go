@@ -68,6 +68,10 @@ func (s *CommandLineInterface) BuildCommands() map[string]*Command {
 			name:      "create",
 			operation: s.createCmd,
 		},
+		"modify": {
+			name:      "modify",
+			operation: s.modifyCmd,
+		},
 		// TODO: Patch
 		// TODO: Delete
 		// TODO: Create issue
@@ -148,7 +152,11 @@ func (s *CommandLineInterface) dispatch(cmds map[string]*Command, args []string)
 
 }
 
-func (s *CommandLineInterface) PatchIssue(id int, upd_req models.UpdateIssueRequest) error {
+func (s *CommandLineInterface) modifyIssueHelper(id int) error {
+
+}
+
+func (s *CommandLineInterface) ModifyIssue(id int, upd_req models.UpdateIssueRequest) error {
 
 	err := s.issueService.PatchIssue(id, upd_req)
 	if err != nil {
@@ -174,50 +182,6 @@ func (s *CommandLineInterface) GetIssue(id int) (*models.Issue, error) {
 }
 
 // TODO: 2026-04-27: Split into separate functions that are each called here by this function, with each of the having validation at the end.
-
-func readTitle(reader *bufio.Reader) (string, error) {
-
-	fmt.Print("Title: ")
-	title, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Printf("Could not read title: %s\n", title)
-		return "", err // TODO: Fix to not return empty string
-	}
-	err = models.ValidateTitle(title)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(title), nil
-}
-
-func readExtRef(reader *bufio.Reader) (string, error) {
-	fmt.Print("External Reference: ")
-	external_ref, err := reader.ReadString('\n')
-
-	if err != nil {
-		fmt.Printf("Could not read external ref : %s\n", external_ref)
-		return "", err
-	}
-	err = models.ValidateExternalRef(external_ref)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(external_ref), nil
-}
-
-func readDescription(reader *bufio.Reader) (string, error) {
-	fmt.Print("Description: ")
-	desc, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Printf("Could not read description : %s\n", desc)
-		return "", err
-	}
-	err = models.ValidateDescription(desc)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(desc), nil
-}
 
 func (s *CommandLineInterface) CreateIssue() error {
 	var issue_request models.CreateIssueRequest

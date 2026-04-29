@@ -30,9 +30,24 @@ func (s *CommandLineInterface) setStatusCmd(args []string, status bool) {
 		Active: &status,
 	}
 
-	if err := s.PatchIssue(id, req); err != nil {
+	if err := s.ModifyIssue(id, req); err != nil {
 		fmt.Printf("Failed to update issue: %s\n", err)
 	}
+}
+
+func (s *CommandLineInterface) modifyCmd(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Expected id as argument to command!")
+		return
+	}
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Printf("invalid id: %s\n", args[0])
+		fmt.Println(err)
+		return
+	}
+
+	return s.modifyIssueHelper(id)
 }
 
 func (s *CommandLineInterface) getLogCmd(args []string) {
