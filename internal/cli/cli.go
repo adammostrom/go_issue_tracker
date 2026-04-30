@@ -33,69 +33,86 @@ func NewCLI(s IssueServiceInterface) *CommandLine {
 
 type Command struct {
 	name        string
-	operation   func(args []string)
+	operation   func(args []string) error
+	description string
 	subcommands map[string]*Command
 }
 
 func (s *CommandLine) BuildCommands() map[string]*Command {
 	return map[string]*Command{
 		"list": {
-			name:      "list",
-			operation: s.listCmd,
+			name:        "list",
+			description: "List all issues",
+			operation:   s.getAllCmd,
 		},
 		"get": {
-			name:      "get",
-			operation: s.getCmd,
+			name:        "get",
+			description: "Get issue",
+			operation:   s.getIssueCmd,
 		},
-		// TODO: started, idle, completed
+		"create": {
+			name:        "create",
+			description: "Create new issue",
+			operation:   s.createCmd,
+		},
+		"modify": {
+			name:        "modify",
+			description: "Change existing issue fields",
+			operation:   s.modifyCmd,
+		},
+		"delete": {
+			name:        "delete",
+			description: "Delete an issue",
+			operation:   s.deleteCmd,
+		},
 		"set": {
-			name: "set",
-			operation: func(args []string) {
-				fmt.Println("Available subcommands: active, inactive")
+			name:        "set",
+			description: "Set state for an issue, such as activity and progress",
+			operation: func(args []string) error {
+				fmt.Println("Available subcommands: active, inactive, progress")
+				return nil
 			},
 			subcommands: map[string]*Command{
 				"active": {
-					name:      "active",
-					operation: s.setActiveCmd,
+					name:        "active",
+					description: "Set an issue to active",
+					operation:   s.setActiveCmd,
 				},
 				"inactive": {
-					name:      "inactive",
-					operation: s.setInactiveCmd,
+					name:        "inactive",
+					description: "Set an issue to inactive",
+					operation:   s.setInactiveCmd,
 				},
 				"progress": {
-					name:      "progress",
-					operation: s.setProgressCmd,
+					name:        "progress",
+					description: "Set the progress status for an issue (idle, started, completed)",
+					operation:   s.setProgressCmd,
 				},
 			},
 		},
-		"create": {
-			name:      "create",
-			operation: s.createCmd,
-		},
-		"modify": {
-			name:      "modify",
-			operation: s.modifyCmd,
-		},
-		// TODO: Patch
-		// TODO: Delete
-		// TODO: Create issue
 		"log": {
-			name: "log",
-			operation: func(args []string) {
+			name:        "log",
+			description: "Perform log operations like get, create, delete",
+			operation: func(args []string) error {
 				fmt.Println("Available subcommands: get, create, delete")
+				return nil
 			},
 			subcommands: map[string]*Command{
 				"get": {
-					name:      "get",
-					operation: s.getLogCmd,
+					name:        "get",
+					description: "Get the log entries",
+					operation:   s.getLogCmd,
 				},
 				"create": {
-					name:      "create",
-					operation: s.createLogCmd,
+					name:        "create",
+					description: "Create a new log entry",
+					operation:   s.createLogCmd,
 				},
+				// TODO: Delete last entry? Delete selected entry?
 				"delete": {
-					name:      "delete",
-					operation: s.deleteLogsCmd,
+					name:        "delete",
+					description: "TBD",
+					operation:   s.deleteLogsCmd,
 				},
 			},
 		},
@@ -156,25 +173,9 @@ func (s *CommandLine) dispatch(cmds map[string]*Command, args []string) {
 
 }
 
-func (s *CommandLine) setProgress(id int, status models.ProgressStatus) error {
-
-	req := models.UpdateIssueRequest{
-		Progress: &status,
-	}
-	err := s.ModifyIssue(id, req)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Progress status changed successfully to: %s", req.Progress.String())
-	return nil
-
-}
-
-func (s *CommandLine) modifyIssueHelper(id int) error {
+func (s *CommandLine) modifyIssueHelper(req *models.UpdateIssueRequest) error {
 
 	reader := bufio.NewReader(os.Stdin)
-
-	req := models.UpdateIssueRequest{}
 
 	title, err := readValidated(reader, "Title: ", models.ValidateTitle, true)
 	if err != nil {
@@ -200,86 +201,7 @@ func (s *CommandLine) modifyIssueHelper(id int) error {
 		req.Description = &desc
 	}
 
-	return s.ModifyIssue(id, req)
-}
-
-func (s *CommandLine) ModifyIssue(id int, upd_req models.UpdateIssueRequest) error {
-
-	err := s.issueService.PatchIssue(id, upd_req)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Issue modified successfully with values: ")
-	fmt.Printf("upd_req: %v\n", &upd_req)
 	return nil
-}
-
-func (s *CommandLine) GetIssues(status models.IssueStatus) ([]models.Issue, error) {
-	issues, err := s.issueService.GetAllIssues(status)
-	if err != nil {
-		return nil, err
-	}
-	return issues, nil
-}
-
-func (s *CommandLine) GetIssue(id int) (*models.Issue, error) {
-	issue, err := s.issueService.GetIssueByID(id)
-	if err != nil || issue == nil {
-		return nil, err
-	}
-	return issue, nil
-}
-
-// TODO: 2026-04-27: Split into separate functions that are each called here by this function, with each of the having validation at the end.
-
-func (s *CommandLine) CreateIssue() error {
-	var issue_request models.CreateIssueRequest
-
-	reader := bufio.NewReader(os.Stdin)
-
-	title, err := readValidated(reader, "Title: ", models.ValidateTitle, false)
-	if err != nil {
-		return err
-	}
-	issue_request.Title = title
-
-	externalRef, err := readValidated(reader, "External Reference: ", models.ValidateExternalRefWrapper, true)
-	if err != nil {
-		return err
-	}
-	if externalRef == "" {
-		issue_request.External_Ref = nil // IMPORTANT
-	} else {
-		issue_request.External_Ref = &externalRef
-	}
-
-	description, err := readValidated(reader, "Description: ", models.ValidateDescription, false)
-	if err != nil {
-		return err
-	}
-	issue_request.Description = description
-
-	issue, err := s.issueService.CreateNewIssue(issue_request)
-	if err != nil {
-		fmt.Printf("Failed to create issue: %s\n", err)
-		return err
-	}
-	fmt.Println("Issue successfully created")
-	printIssue(issue)
-	return nil
-}
-
-func (s *CommandLine) CreateLogEntry(id int, entry string) error {
-	err := s.issueService.AddLogEntry(id, entry)
-	if err != nil {
-		fmt.Printf("Failed to create log entry: %s", err)
-		return err
-	}
-	return nil
-}
-
-func (s *CommandLine) DeleteLogsForIssue(id int) error {
-	return s.issueService.DeleteLogsFromIssue(id)
 }
 
 func readValidated(reader *bufio.Reader, prompt string, validate func(string) error, allowEmpty bool) (string, error) {
@@ -322,7 +244,7 @@ func printIssue(issue *models.Issue) error {
 	fmt.Println("-------------------------")
 	fmt.Printf("ID:                 %d\n", issue.Internal_ID)
 	fmt.Printf("Title:              %s\n", issue.Title)
-	fmt.Printf("External Reference: %s\n", issue.External_Ref)
+	fmt.Printf("External Reference: %s\n", deref(issue.External_Ref, "null"))
 	fmt.Printf("Description:        %s\n", issue.Description)
 	fmt.Printf("Active Status:      %t\n", issue.Active)
 	fmt.Printf("Progrss:            %s\n", issue.Progress.String())
@@ -345,15 +267,15 @@ func simplePrintString(i *models.Issue, issueService IssueServiceInterface) stri
 	if err != nil {
 		return fmt.Sprint(err)
 	}
-	created := logs[0]
+	created := logs[0].Timestamp
 
 	ext_ref_print := deref(i.External_Ref, "null")
 
 	return fmt.Sprintf(
-		"%s - %s %d %s | %s",
+		"    -%d-     %s  | %s | %s | %s ",
+		i.Internal_ID,
 		progressSymbol(i.Progress),
 		created,
-		i.Internal_ID,
 		layoutDistancePrint(ext_ref_print, models.EXTERNAL_MAX),
 		layoutDistancePrint(i.Title, models.TITLE_MAX),
 	)

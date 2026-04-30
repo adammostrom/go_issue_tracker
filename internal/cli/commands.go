@@ -1,183 +1,246 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"issuetracker/internal/models"
+	"os"
 	"strconv"
 )
 
-func (s *CommandLine) setActiveCmd(args []string) {
-	s.setStatusCmd(args, true)
+func (s *CommandLine) setActiveCmd(args []string) error {
+	return s.setStatusCmd(args, true)
 }
 
-func (s *CommandLine) setInactiveCmd(args []string) {
-	s.setStatusCmd(args, false)
+func (s *CommandLine) setInactiveCmd(args []string) error {
+	return s.setStatusCmd(args, false)
 }
 
-func (s *CommandLine) setStatusCmd(args []string, status bool) {
+func (s *CommandLine) setStatusCmd(args []string, status bool) error {
 	id, err := getIdFromInput(args)
 	if err != nil || id == -1 {
-		return
+		return err
 	}
 
 	req := models.UpdateIssueRequest{
 		Active: &status,
 	}
 
-	if err := s.ModifyIssue(id, req); err != nil {
-		fmt.Printf("Failed to update issue: %s\n", err)
+	if err := s.issueService.PatchIssue(id, req); err != nil {
+		fmt.Printf("Failed to update issue with id: %d", id)
+		return err
 	}
+
+	fmt.Printf("Status updated successfully to: %t", status)
+	return nil
 }
 
-func (s *CommandLine) modifyCmd(args []string) {
+func (s *CommandLine) modifyCmd(args []string) error {
+
+	var req = &models.UpdateIssueRequest{}
+
 	id, err := getIdFromInput(args)
 	if err != nil || id == -1 {
-		return
+		return err
 	}
 
-	err = s.modifyIssueHelper(id)
+	err = s.modifyIssueHelper(req)
+	if err != nil {
+		return err
+	}
+
+	err = s.issueService.PatchIssue(id, *req)
+	fmt.Printf("Issue modified successfully with values: %v \n", *req)
+	return nil
+}
+
+func (s *CommandLine) deleteCmd(args []string) error {
+	id, err := getIdFromInput(args)
+	if err != nil || id == -1 {
+		return err
+	}
+	err = s.issueService.DeleteIssue(id)
 	if err != nil {
 		fmt.Println(err)
+		return err
 	}
+	fmt.Println("Issue deleted successfully")
+	return nil
 }
 
-func (s *CommandLine) getLogCmd(args []string) {
+func (s *CommandLine) getLogCmd(args []string) error {
 	id, err := getIdFromInput(args)
 	if err != nil || id == -1 {
-		return
+		return err
 	}
 
 	logs, err := s.issueService.GetLogsFromIssue(id)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	if len(logs) == 0 {
-		fmt.Println("No logs found")
-		return
+		fmt.Printf("No log entries for given id: %d\n", id)
+		return nil
 	}
 	for _, log := range logs {
-		fmt.Printf("log: %v\n", log)
+		fmt.Printf("entry: %v\n", log)
 	}
-
+	return nil
 }
 
-func (s *CommandLine) setProgressCmd(args []string) {
+func (s *CommandLine) setProgressCmd(args []string) error {
+
+	var req = &models.UpdateIssueRequest{}
+
 	id, err := getIdFromInput(args)
 	if err != nil || id == -1 {
-		return
+		return err
 	}
 	if len(args) < 2 {
 		fmt.Println("Expected subcommand: idle, started, completed!")
+		return nil
 	}
 
 	statusStr := args[1]
 
 	status, err := models.ParseProgressStatus(statusStr)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
 	if status.IsValidProgress() {
-		err = s.setProgress(id, status)
+		req.Progress = &status
+		err = s.issueService.PatchIssue(id, *req)
 		if err != nil {
-			fmt.Println(err)
+			return err
 		}
 	} else {
 		fmt.Println("Not a valid progress status")
-		return
+		return err
 	}
+
+	fmt.Printf("Progress status changed successfully to: %s\n", req.Progress.String())
+	return nil
 
 }
 
-func (s *CommandLine) deleteLogsCmd(args []string) {
+func (s *CommandLine) deleteLogsCmd(args []string) error {
 
 	id, err := getIdFromInput(args)
 	if err != nil || id == -1 {
-		return
+		return err
 	}
-
-	err = s.DeleteLogsForIssue(id)
+	err = s.issueService.DeleteLogsFromIssue(id)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
-
+	fmt.Println("Logs erased successfully")
+	return nil
 }
 
 // Get one issue
-func (s *CommandLine) getCmd(args []string) {
+func (s *CommandLine) getIssueCmd(args []string) error {
 
 	id, err := getIdFromInput(args)
 	if err != nil || id == -1 {
-		return
+		return err
 	}
 
-	issue, err := s.GetIssue(id)
-	if err != nil {
-		fmt.Println(err)
-		return
+	issue, err := s.issueService.GetIssueByID(id)
+	if err != nil || issue == nil {
+		return err
 	}
 	printIssue(issue)
+	return nil
 }
 
 // Get all issues
-func (s *CommandLine) listCmd(args []string) {
+func (s *CommandLine) getAllCmd(args []string) error {
 
 	status := models.StatusDefault
 
 	if len(args) > 0 {
 		parsed, err := models.ParseStatus(args[0])
 		if err != nil {
-			fmt.Println("invalid status")
-			return
+			return err
 		}
 		status = parsed
 	}
-	issues, err := s.GetIssues(status)
+	issues, err := s.issueService.GetAllIssues(status)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	if len(issues) == 0 {
 		fmt.Println("No issues found")
+		return nil
 	}
 	for _, issue := range issues {
 		simplePrintIssue(&issue, s.issueService)
 	}
+	return nil
 }
 
-func (s *CommandLine) createCmd(args []string) {
+func (s *CommandLine) createCmd(args []string) error {
 
-	err := s.CreateIssue()
+	var issue_request models.CreateIssueRequest
+
+	reader := bufio.NewReader(os.Stdin)
+
+	title, err := readValidated(reader, "Title: ", models.ValidateTitle, false)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
+	}
+	issue_request.Title = title
+
+	externalRef, err := readValidated(reader, "External Reference: ", models.ValidateExternalRefWrapper, true)
+	if err != nil {
+		return err
+	}
+	if externalRef == "" {
+		issue_request.External_Ref = nil // IMPORTANT
+	} else {
+		issue_request.External_Ref = &externalRef
 	}
 
+	description, err := readValidated(reader, "Description: ", models.ValidateDescription, false)
+	if err != nil {
+		return err
+	}
+	issue_request.Description = description
+
+	issue, err := s.issueService.CreateNewIssue(issue_request)
+	if err != nil {
+		fmt.Printf("Failed to create issue: %s\n", err)
+		return err
+	}
+	fmt.Println("Issue successfully created")
+	printIssue(issue)
+	return nil
+
 }
 
-func (s *CommandLine) createLogCmd(args []string) {
+func (s *CommandLine) createLogCmd(args []string) error {
 
 	id, err := getIdFromInput(args)
 	if err != nil || id == -1 {
-		return
+		return err
 	}
 
 	if len(args) < 2 {
 		fmt.Println("Expected entry as arguments to command!")
-		return
+		return err
 	}
 
 	entry := args[1]
 
-	err = s.CreateLogEntry(id, entry)
+	err = s.issueService.AddLogEntry(id, entry)
 	if err != nil {
-		fmt.Println(err)
-		return
+		fmt.Printf("Failed to create log entry: %s", err)
+		return err
 	}
+
 	fmt.Println("Log entry created successfully")
+	return nil
 }
 
 func getIdFromInput(args []string) (int, error) {

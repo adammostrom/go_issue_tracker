@@ -192,6 +192,13 @@ func (s *IssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) err
 }
 
 func (s *IssueService) GetLogsFromIssue(id int) ([]models.LogEntry, error) {
+
+	// Check if issue by this ID exists
+	_, err := s.GetIssueByID(id)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
 	logs, err := s.db_layer.GetLogs(id)
 	if err != nil {
 		return nil, err

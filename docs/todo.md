@@ -30,10 +30,10 @@
     [X] - In router
     [X] - In server
     [X] - In database_layer
-[/] - Implement UPDATE for an issue (update fields)
-    [/] - In router
-    [/] - In server
-    [/] - In database_layer
+[X] - Implement PATCH for an issue (update fields)
+    [X] - In router
+    [X] - In server
+    [X] - In database_layer
 [/] - Implement "add log entry" for an issue
     [X] - In router
     [X] - In server
