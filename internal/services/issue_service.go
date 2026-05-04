@@ -26,6 +26,7 @@ type DatabaseInterface interface {
 	DeleteIssue(id int) error
 	ExtRefExists(ref *string) (bool, error)
 	GetLogs(id int) ([]models.LogEntry, error)
+	GetIssueByRef(reference *string) (*models.Issue, error)
 }
 
 // IssueService accepts a database connection in order to delegate tasks downwards
@@ -43,7 +44,7 @@ func NewIssueService(db_layer DatabaseInterface) *IssueService {
 
 func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error) {
 
-	timestamp := time.Now().Format("2006-01-02") // 2026-05-04: Removed HH:MM, no need for that resolution
+	timestamp := time.Now().Format("2006-01-02 15:04") // 2026-05-04: Removed HH:MM, no need for that resolution
 	var logEntries = []models.LogEntry{
 		{Timestamp: timestamp, Entry: "Issue created"},
 	}
@@ -198,7 +199,7 @@ func (s *IssueService) AddLogEntry(id int, entry string) error {
 		return err
 	}
 
-	timestamp := time.Now().Format("2006-01-02") // 2026-05-04: Removed HH:MM, no need for that resolution
+	timestamp := time.Now().Format("2006-01-02 15:04") // 2026-05-04: Removed HH:MM, no need for that resolution
 	var logEntry = models.LogEntry{
 		Timestamp: timestamp, Entry: entry,
 	}
@@ -218,4 +219,12 @@ func (s *IssueService) DeleteLogsFromIssue(id int) error {
 		return err
 	}
 	return s.db_layer.DeleteLogs(id)
+}
+
+func (s *IssueService) GetIssueByRef(reference *string) (*models.Issue, error) {
+	issue, err := s.db_layer.GetIssueByRef(reference)
+	if err != nil {
+		return nil, err
+	}
+	return issue, nil
 }

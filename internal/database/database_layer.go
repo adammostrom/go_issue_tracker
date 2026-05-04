@@ -142,11 +142,22 @@ func (s *DatabaseConnection) GetIssue(id int) (*models.Issue, error) {
 
 	// TODO: Dont return everything (*), create a VIEW in SQL and return from that instead
 	err := s.db.QueryRow(
-		"SELECT * FROM Issues WHERE id = $1", id).Scan(&issue.Internal_ID, &issue.External_Ref, &issue.Title, &issue.Description, &issue.Active, &issue.Progress)
+		`SELECT id, external_ref, title, description, active, progress
+		 FROM Issues
+		 WHERE id = $1`,
+		id,
+	).Scan(
+		&issue.Internal_ID,
+		&issue.External_Ref,
+		&issue.Title,
+		&issue.Description,
+		&issue.Active,
+		&issue.Progress,
+	)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrIssueNotFound(id)
+			return nil, fmt.Errorf("issue not found (id=%d)", id)
 		}
 		return nil, err
 	}
@@ -234,10 +245,37 @@ func (s *DatabaseConnection) ExtRefExists(ref *string) (bool, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return false, err
+			return false, fmt.Errorf("issue not found (ref=%s)", *ref)
 		}
 	}
 	return exists, err
+}
+
+func (s *DatabaseConnection) GetIssueByRef(ref *string) (*models.Issue, error) {
+	issue := &models.Issue{}
+
+	err := s.db.QueryRow(
+		`SELECT id, external_ref, title, description, active, progress
+		 FROM Issues
+		 WHERE external_ref = $1`,
+		ref,
+	).Scan(
+		&issue.Internal_ID,
+		&issue.External_Ref,
+		&issue.Title,
+		&issue.Description,
+		&issue.Active,
+		&issue.Progress,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("issue not found (ref=%s)", *ref)
+		}
+		return nil, err
+	}
+
+	return issue, nil
 }
 
 // Errors
@@ -252,4 +290,8 @@ func (ierr ErrorIssueNotFound) Error() string {
 
 func ErrIssueNotFound(id int) error {
 	return fmt.Errorf("issue with id %d not found", id)
+}
+
+func ErrIssueNotFoundRef(ref *string) error {
+	return fmt.Errorf("issue with ref %s not found", *ref)
 }

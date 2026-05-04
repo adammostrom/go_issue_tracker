@@ -17,6 +17,7 @@ type IssueServiceInterface interface {
 	GetLogsFromIssue(id int) ([]models.LogEntry, error)
 	AddLogEntry(id int, entry string) error
 	DeleteLogsFromIssue(id int) error
+	GetIssueByRef(reference *string) (*models.Issue, error)
 }
 
 type CommandLine struct {
@@ -49,6 +50,11 @@ func (s *CommandLine) BuildCommands() map[string]*Command {
 			name:        "get",
 			description: "Get issue <id>",
 			operation:   s.getIssueCmd,
+		},
+		"getref": {
+			name:        "getref",
+			description: "Get issue by reference: <ref>",
+			operation:   s.getIssueREFCmd,
 		},
 		"create": {
 			name:        "create",
