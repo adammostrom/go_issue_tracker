@@ -278,7 +278,7 @@ func simplePrintIssue(issues []models.Issue, issueService IssueServiceInterface)
 	}
 
 	// Header
-	fmt.Printf("%-4s %-4s %-17s %-12s %-30s\n",
+	fmt.Printf("%-4s %-4s %-17s %-12s %-10s\n",
 		"ID", "ST", "CREATED", "EXT REF", "TITLE",
 	)
 	fmt.Println("──── ──── ───────────────── ──────────── ─────────────────────────────")
@@ -298,12 +298,12 @@ func simplePrintString(i *models.Issue, issueService IssueServiceInterface) {
 	created := logs[0].Timestamp
 	extRef := formatExtRef(i.External_Ref)
 
-	fmt.Printf(" "+"%-4d %-4s %-17s %-12s %-30s\n",
+	fmt.Printf(" "+"%-4d %-4s %-17s %-12s %-60s\n",
 		i.Internal_ID,
 		progressSymbol(i.Progress),
 		created,
 		extRef,
-		truncate(i.Title, 30),
+		truncate(i.Title, 40),
 	)
 }
 
