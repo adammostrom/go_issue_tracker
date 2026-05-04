@@ -14,18 +14,25 @@ const (
 	StatusDefault  IssueStatus = 3
 )
 
-func ParseStatus(s string) (IssueStatus, error) {
+func ptrBool(v bool) *bool {
+	return &v
+}
+
+func ParseStatus(s string) (*bool, error) {
 
 	s = cleanString(s)
+
+	if s == "" {
+		return nil, nil
+	}
+
 	switch s {
 	case "active":
-		return StatusActive, nil
+		return ptrBool(true), nil
 	case "inactive":
-		return StatusInactive, nil
-	case "":
-		return StatusDefault, nil
+		return ptrBool(false), nil
 	default:
-		return StatusUknown, fmt.Errorf("invalid status: %s", s)
+		return nil, fmt.Errorf("invalid status: %s  (valid: active, inactive)", s)
 	}
 }
 

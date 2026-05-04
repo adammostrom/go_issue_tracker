@@ -46,7 +46,7 @@ func main() {
 	cmds := cli.BuildCommands()
 
 	if len(os.Args) < 2 {
-		cli.PrintCommands(cmds, 0)
+		cli.PrintCommandUsage(cmds)
 		return
 	}
 

@@ -35,8 +35,23 @@ func NewDatabaseConnection(db *sql.DB) *DatabaseConnection {
 // & = address, returns pointer of type IssueDBConn
 
 // “Given an Issue struct, store it in the database.”
-func (s *DatabaseConnection) GetIssues(query string) ([]models.Issue, error) {
-	rows, err := s.db.Query(query) // TODO 2026-03-31: Make a view in SQL and select from that one instead
+func (s *DatabaseConnection) GetIssues(filter models.IssueFilter) ([]models.Issue, error) {
+
+	query := "SELECT * FROM issues WHERE 1=1"
+
+	args := []interface{}{}
+
+	if filter.Active != nil {
+		query += " AND active = ?"
+		args = append(args, *filter.Active)
+	}
+
+	if filter.Progress != nil {
+		query += " AND progress = ?"
+		args = append(args, *filter.Progress)
+	}
+
+	rows, err := s.db.Query(query, args...) // TODO 2026-03-31: Make a view in SQL and select from that one instead
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +218,11 @@ func (s *DatabaseConnection) DeleteLogs(id int) error {
 
 // TODO: implement
 
-func (s *DatabaseConnection) ExtRefExists(ref string) (bool, error) {
+func (s *DatabaseConnection) ExtRefExists(ref *string) (bool, error) {
+
+	if ref == nil {
+		return false, nil
+	}
 
 	var exists bool
 

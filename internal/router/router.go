@@ -2,6 +2,7 @@ package router
 
 import (
 	"encoding/json"
+	"fmt"
 	"issuetracker/internal/models"
 	"log"
 	"net/http"
@@ -18,7 +19,7 @@ The router/handler is responsible for:
 
 type IssueServiceInterface interface {
 	CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error)
-	GetAllIssues(status models.IssueStatus) ([]models.Issue, error)
+	GetAllIssues(filter models.IssueFilter) ([]models.Issue, error)
 	GetIssueByID(id int) (*models.Issue, error)
 	DeleteIssue(id int) error
 	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
@@ -101,7 +102,7 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 	issue, err := s.issueService.GetIssueByID(int(id))
 	if err != nil {
-		log.Printf("failed to get issue with id: %d\n", id)
+		log.Printf("failed to get issue with id: %d. Cause: %s\n", id, err)
 		http.Error(w, "failed to get issue\n", http.StatusBadRequest)
 		return
 	}
@@ -121,21 +122,35 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 // TODO: 2026-04-06: Find a way to not duplicate these functions.
 func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
+	var filter models.IssueFilter
 
 	statusStr := r.URL.Query().Get("status")
+	progressStr := strings.TrimSpace(r.URL.Query().Get("progress"))
 
-	status := models.StatusDefault
+	fmt.Printf("progressStr: '%s' (len=%d)\n", progressStr, len(progressStr))
 
-	if statusStr != "" {
-		parsed, err := models.ParseStatus(statusStr)
+	if progressStr == "" {
+		filter.Progress = nil
+	} else {
+		parsed_progress, err := models.ParseProgressStatus(progressStr)
 		if err != nil {
-			http.Error(w, "invalid status\n", http.StatusBadRequest)
+			fmt.Print("ERROR")
+			http.Error(w, "invalid progress\n", http.StatusBadRequest)
 			return
 		}
-		status = parsed
+		filter.Progress = &parsed_progress
+
 	}
 
-	issues, err := s.issueService.GetAllIssues(status)
+	parsed, err := models.ParseStatus(statusStr)
+	if err != nil {
+		http.Error(w, "invalid status\n", http.StatusBadRequest)
+		return
+	}
+
+	filter.Active = parsed
+
+	issues, err := s.issueService.GetAllIssues(filter)
 	if err != nil {
 		log.Printf("Failed to get issues\n")
 		http.Error(w, "failed to get issues\n", http.StatusBadRequest)

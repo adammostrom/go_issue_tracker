@@ -43,9 +43,9 @@ func (f *fakeIssueService) CreateNewIssue(req models.CreateIssueRequest) (*model
 	return nil, nil
 }
 
-func (f *fakeIssueService) GetAllIssues(status models.IssueStatus) ([]models.Issue, error) {
+func (f *fakeIssueService) GetAllIssues(filter models.IssueFilter) ([]models.Issue, error) {
 	f.called = true
-	f.status = status
+	//f.status = filter.Active
 	return f.issues, f.err
 }
 
@@ -75,6 +75,10 @@ func (f *fakeIssueService) GetLogsFromIssue(id int) ([]models.LogEntry, error) {
 }
 
 func (f *fakeIssueService) AddLogEntry(id int, entry string) error {
+	return nil
+}
+
+func (f *fakeIssueService) DeleteLogsFromIssue(id int) error {
 	return nil
 }
 
@@ -180,10 +184,11 @@ func setupGetSingleIssue(path string, service *fakeIssueService) *http.Response 
 
 	// Fake service, (dependency injection), the issue is here placed in the service so we can "GET" it.
 
+	ext_ref := "extref"
 	service.issue = &models.Issue{
 
 		Internal_ID:  1,
-		External_Ref: "extref",
+		External_Ref: &ext_ref,
 		Title:        "title",
 		Description:  "description",
 		Active:       true,
