@@ -14,8 +14,8 @@ const (
 )
 
 type Issue struct {
-	Internal_ID  int64  // postgres generated
-	External_Ref string // Unique ID put by user
+	Internal_ID  int64   // postgres generated
+	External_Ref *string // Unique ID put by user
 	Title        string
 	Description  string
 	Log          []LogEntry
@@ -30,9 +30,9 @@ type LogEntry struct {
 
 // Issuerequest currently hides the log
 type CreateIssueRequest struct {
-	External_Ref string `json:"external_ref"`
-	Title        string `json:"title"`
-	Description  string `json:"description"`
+	External_Ref *string `json:"external_ref"`
+	Title        string  `json:"title"`
+	Description  string  `json:"description"`
 }
 
 // For returning an issue request
@@ -52,4 +52,10 @@ type UpdateIssueRequest struct {
 	Description  *string         `json:"description"`
 	Active       *bool           `json:"active"`
 	Progress     *ProgressStatus `json:"progress"`
+}
+
+type IssueFilter struct {
+	Active   *bool
+	Progress *ProgressStatus
+	Created  *string
 }

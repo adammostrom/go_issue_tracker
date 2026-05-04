@@ -2,12 +2,13 @@ package models
 
 import (
 	"fmt"
+	"strings"
 )
 
 const TITLE_MIN = 2
 const TITLE_MAX = 40
-const EXTERNAL_MIN = 2
-const EXTERNAL_MAX = 20
+const EXTERNAL_MIN = 0
+const EXTERNAL_MAX = 10
 const DESCR_MIN = 0
 const DESCR_MAX = 200
 
@@ -23,9 +24,23 @@ func (i *Issue) ValidateIssue() error {
 	}
 	return nil
 }
-func ValidateExternalRef(extRef string) error {
-	if len(extRef) < EXTERNAL_MIN || len(extRef) > EXTERNAL_MAX {
-		return fmt.Errorf("External Reference must be between %d and %d . Provided was: %d\n", EXTERNAL_MIN, EXTERNAL_MAX, len(extRef))
+
+func ValidateExternalRefWrapper(s string) error {
+	if s == "" {
+		return nil // or treat as optional
+	}
+
+	// *value = get the value at the address
+	// &value = get the address from the value
+
+	return ValidateExternalRef(&s)
+}
+func ValidateExternalRef(extRef *string) error {
+	if extRef == nil {
+		return nil
+	}
+	if len(*extRef) < EXTERNAL_MIN || len(*extRef) > EXTERNAL_MAX {
+		return fmt.Errorf("External Reference must be between %d and %d . Provided was: %d\n", EXTERNAL_MIN, EXTERNAL_MAX, len(*extRef))
 	}
 	return nil
 }
@@ -74,5 +89,18 @@ func (p *ProgressStatus) String() string {
 		return "finished"
 	default:
 		return "unknown"
+	}
+}
+
+func ParseProgressStatus(s string) (ProgressStatus, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "idle":
+		return Idle, nil
+	case "started":
+		return Started, nil
+	case "completed":
+		return Finished, nil
+	default:
+		return -1, fmt.Errorf("invalid progress: %s (valid: idle, started, completed)", s)
 	}
 }

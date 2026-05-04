@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS Issues (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    external_ref TEXT NULL,
+    external_ref TEXT UNIQUE NULL,
     title TEXT,
     description TEXT,
     active INTEGER DEFAULT 0,
