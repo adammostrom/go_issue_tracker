@@ -10,7 +10,7 @@ import (
 
 type IssueServiceInterface interface {
 	CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error)
-	GetAllIssues(status models.IssueStatus) ([]models.Issue, error)
+	GetAllIssues(filter models.IssueFilter) ([]models.Issue, error)
 	GetIssueByID(id int) (*models.Issue, error)
 	DeleteIssue(id int) error
 	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
@@ -47,71 +47,70 @@ func (s *CommandLine) BuildCommands() map[string]*Command {
 		},
 		"get": {
 			name:        "get",
-			description: "Get issue",
+			description: "Get issue <id>",
 			operation:   s.getIssueCmd,
 		},
 		"create": {
 			name:        "create",
-			description: "Create new issue",
+			description: "Create a new issue",
 			operation:   s.createCmd,
 		},
 		"modify": {
 			name:        "modify",
-			description: "Change existing issue fields",
+			description: "Modify issue <id>",
 			operation:   s.modifyCmd,
 		},
 		"delete": {
 			name:        "delete",
-			description: "Delete an issue",
+			description: "Delete issue <id>",
 			operation:   s.deleteCmd,
 		},
 		"set": {
 			name:        "set",
-			description: "Set state for an issue, such as activity and progress",
+			description: "Set issue state: active | inactive | progress",
 			operation: func(args []string) error {
-				fmt.Println("Available subcommands: active, inactive, progress")
+				fmt.Println("Subcommands: active, inactive, progress")
 				return nil
 			},
 			subcommands: map[string]*Command{
 				"active": {
 					name:        "active",
-					description: "Set an issue to active",
+					description: "Set issue <id> active",
 					operation:   s.setActiveCmd,
 				},
 				"inactive": {
 					name:        "inactive",
-					description: "Set an issue to inactive",
+					description: "Set issue <id> inactive",
 					operation:   s.setInactiveCmd,
 				},
 				"progress": {
 					name:        "progress",
-					description: "Set the progress status for an issue (idle, started, completed)",
+					description: "Set progress <id> <idle|started|completed>",
 					operation:   s.setProgressCmd,
 				},
 			},
 		},
 		"log": {
 			name:        "log",
-			description: "Perform log operations like get, create, delete",
+			description: "Manage logs: get | create | delete",
 			operation: func(args []string) error {
-				fmt.Println("Available subcommands: get, create, delete")
+				fmt.Println("Subcommands: get, create, delete")
 				return nil
 			},
 			subcommands: map[string]*Command{
 				"get": {
 					name:        "get",
-					description: "Get the log entries",
+					description: "Get logs for <id>",
 					operation:   s.getLogCmd,
 				},
 				"create": {
 					name:        "create",
-					description: "Create a new log entry",
+					description: "Create log <id> <entry>",
 					operation:   s.createLogCmd,
 				},
-				// TODO: Delete last entry? Delete selected entry?
 				"delete": {
 					name:        "delete",
-					description: "TBD",
+					description: "Delete logs for <id>",
 					operation:   s.deleteLogsCmd,
 				},
 			},
@@ -123,14 +122,22 @@ func (s *CommandLine) Run(cmds map[string]*Command, args []string) {
 	s.dispatch(cmds, args)
 }
 
+func (s *CommandLine) PrintCommandUsage(cmds map[string]*Command) {
+	fmt.Printf("Usage: issuetracker <COMMAND> <SUBCOMMAND> \n")
+	s.PrintCommands(cmds, 0)
+}
+
+const PRINT_DISTANCE = 15
+
 func (s *CommandLine) PrintCommands(cmds map[string]*Command, depth int) {
+
 	for name, cmd := range cmds {
 		// indent based on depth
 		for i := 0; i < depth; i++ {
 			fmt.Print("  ")
 		}
-
-		fmt.Println(name)
+		distance := strings.Repeat(" ", PRINT_DISTANCE-len(name))
+		fmt.Println("    " + name + distance + cmd.description)
 
 		// recurse into subcommands
 		if cmd.subcommands != nil {

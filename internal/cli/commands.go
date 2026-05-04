@@ -27,11 +27,11 @@ func (s *CommandLine) setStatusCmd(args []string, status bool) error {
 	}
 
 	if err := s.issueService.PatchIssue(id, req); err != nil {
-		fmt.Printf("Failed to update issue with id: %d", id)
+		fmt.Printf("Failed to update issue with id: %d\n", id)
 		return err
 	}
 
-	fmt.Printf("Status updated successfully to: %t", status)
+	fmt.Printf("Status updated successfully to: %t\n", status)
 	return nil
 }
 
@@ -154,19 +154,56 @@ func (s *CommandLine) getIssueCmd(args []string) error {
 	return nil
 }
 
-// Get all issues
+func parseArguments(args []string) (models.IssueFilter, error) {
+	var f models.IssueFilter
+
+	// with no given, return all issues
+	if len(args) < 1 {
+		return f, nil
+	}
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "status":
+			if 1+i >= len(args) {
+				return f, fmt.Errorf("status requires a value")
+			}
+			active_status, err := models.ParseStatus(args[i+1])
+			if err != nil {
+				return f, err
+			}
+			f.Active = active_status
+			i++
+
+		case "progress":
+			if 1+i >= len(args) {
+				return f, fmt.Errorf("progress requires a value")
+			}
+			progress, err := models.ParseProgressStatus(args[i+1])
+			if err != nil {
+				return f, err
+			}
+			f.Progress = &progress
+			i++
+		default:
+			return f, fmt.Errorf("unknown argument: %s", args[i])
+		}
+	}
+	return f, nil
+}
+
+// Get all issues, regardless of status or progress
 func (s *CommandLine) getAllCmd(args []string) error {
 
-	status := models.StatusDefault
+	//status := models.StatusDefault
 
-	if len(args) > 0 {
-		parsed, err := models.ParseStatus(args[0])
-		if err != nil {
-			return err
-		}
-		status = parsed
+	filter, err := parseArguments(args)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return err
 	}
-	issues, err := s.issueService.GetAllIssues(status)
+
+	issues, err := s.issueService.GetAllIssues(filter)
 	if err != nil {
 		return err
 	}

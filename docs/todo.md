@@ -11,7 +11,7 @@
     [ ] - DELETE ALL LOGS
     [ ] - CREATE LOG
 
-[/] - Implement json convertion functions in handler
+[/] - Implement json convertion functions in handler+
     [ ] - function: backend struct to json response 
 
 [/] - Implement parsing/check for the create issue handler/request
@@ -34,7 +34,7 @@
     [X] - In router
     [X] - In server
     [X] - In database_layer
-[/] - Implement "add log entry" for an issue
+[X] - Implement "add log entry" for an issue
     [X] - In router
     [X] - In server
     [X] - In database_layer
@@ -81,9 +81,9 @@ Implement LOGs handling for:
 [/] - Implement logic to filter issues based on "active", "time created" etc.
     [X] - Implement filtering for active
     [X] - Implement filtering for deacrive
-    [ ] - Implement filtering for started
-    [ ] - Implement filtering for completed
-    [ ] - Implement filtering for idle
+    [X] - Implement filtering for started
+    [X] - Implement filtering for completed
+    [X] - Implement filtering for idle
 
 
 [ ] - Implement sorting
@@ -105,6 +105,8 @@ Implement LOGs handling for:
 
 
 # LOG
+
+
 
 ## 2026-04-29
 

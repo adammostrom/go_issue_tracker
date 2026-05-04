@@ -18,7 +18,7 @@ import (
 
 type DatabaseInterface interface {
 	GetIssue(id int) (*models.Issue, error)
-	GetIssues(query string) ([]models.Issue, error)
+	GetIssues(filter models.IssueFilter) ([]models.Issue, error)
 	ModifyIssue(fields []interface{}, query string, id int) error
 	CreateIssue(issue *models.Issue) (*models.Issue, error)
 	CreateLogEntry(id int64, logEntry models.LogEntry) error
@@ -78,28 +78,16 @@ func (s *IssueService) CreateNewIssue(req models.CreateIssueRequest) (*models.Is
 		return nil, err
 	}
 	if exists {
-		return nil, fmt.Errorf("External ref: %s already exists.", issue.External_Ref)
+		return nil, fmt.Errorf("External ref: %s already exists.", *issue.External_Ref)
 	}
 
 	return s.db_layer.CreateIssue(issue)
 }
 
 // TODO: 2026-04-05 Come back to this and refactor/update so  its more centralized and not a new function for each filtering query
-func (s *IssueService) GetAllIssues(status models.IssueStatus) ([]models.Issue, error) {
+func (s *IssueService) GetAllIssues(filter models.IssueFilter) ([]models.Issue, error) {
 
-	var query string
-
-	switch status {
-	case models.StatusUknown:
-		return nil, fmt.Errorf("Unknown status: %d", status)
-	case models.StatusActive:
-		query = QUERY_ALL_ACTIVE
-	case models.StatusInactive:
-		query = QUERY_ALL_INACTIVE
-	default:
-		query = QUERY_ALL
-	}
-	issues, err := s.db_layer.GetIssues(query)
+	issues, err := s.db_layer.GetIssues(filter)
 	if err != nil {
 		return nil, err // Works because a slice is a pointer to an array
 	}
@@ -123,6 +111,13 @@ func (s *IssueService) DeleteIssue(id int) error {
 }
 
 func (s *IssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) error {
+
+	// Check if issue by this ID exists
+	_, err := s.GetIssueByID(id)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 
 	query := "UPDATE issues SET "
 	updated_fields := []interface{}{}
@@ -175,7 +170,7 @@ func (s *IssueService) PatchIssue(id int, upd_req models.UpdateIssueRequest) err
 	query = strings.TrimSuffix(query, ",")
 	query += fmt.Sprintf(" WHERE id=%d", id)
 
-	err := s.db_layer.ModifyIssue(updated_fields, query, id)
+	err = s.db_layer.ModifyIssue(updated_fields, query, id)
 
 	if err != nil {
 		return err
@@ -199,6 +194,7 @@ func (s *IssueService) GetLogsFromIssue(id int) ([]models.LogEntry, error) {
 		fmt.Println(err)
 		return nil, err
 	}
+
 	logs, err := s.db_layer.GetLogs(id)
 	if err != nil {
 		return nil, err

@@ -18,7 +18,7 @@ The router/handler is responsible for:
 
 type IssueServiceInterface interface {
 	CreateNewIssue(req models.CreateIssueRequest) (*models.Issue, error)
-	GetAllIssues(status models.IssueStatus) ([]models.Issue, error)
+	GetAllIssues(filter models.IssueFilter) ([]models.Issue, error)
 	GetIssueByID(id int) (*models.Issue, error)
 	DeleteIssue(id int) error
 	PatchIssue(id int, upd_req models.UpdateIssueRequest) error
@@ -123,19 +123,25 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 
 	statusStr := r.URL.Query().Get("status")
+	progressStr := r.URL.Query().Get("progress")
 
-	status := models.StatusDefault
-
-	if statusStr != "" {
-		parsed, err := models.ParseStatus(statusStr)
-		if err != nil {
-			http.Error(w, "invalid status\n", http.StatusBadRequest)
-			return
-		}
-		status = parsed
+	parsed, err := models.ParseStatus(statusStr)
+	if err != nil {
+		http.Error(w, "invalid status\n", http.StatusBadRequest)
+		return
 	}
 
-	issues, err := s.issueService.GetAllIssues(status)
+	parsed_progress, err := models.ParseProgressStatus(progressStr)
+	if err != nil {
+		http.Error(w, "invalid progress\n", http.StatusBadRequest)
+		return
+	}
+
+	var filter models.IssueFilter
+	filter.Progress = &parsed_progress
+	filter.Active = parsed
+
+	issues, err := s.issueService.GetAllIssues(filter)
 	if err != nil {
 		log.Printf("Failed to get issues\n")
 		http.Error(w, "failed to get issues\n", http.StatusBadRequest)
