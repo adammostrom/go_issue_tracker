@@ -261,7 +261,7 @@ Logs:
 		issue.Internal_ID,
 		issue.Title,
 		issue.Description,
-		*issue.External_Ref,
+		safeString(issue.External_Ref),
 		issue.Active,
 		issue.Progress.String(),
 	)
@@ -332,4 +332,11 @@ func progressSymbol(p models.ProgressStatus) string {
 	default:
 		return "[-]"
 	}
+}
+
+func safeString(s *string) string {
+	if s == nil {
+		return "—"
+	}
+	return *s
 }
