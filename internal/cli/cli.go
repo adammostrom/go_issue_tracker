@@ -241,64 +241,84 @@ func readValidated(reader *bufio.Reader, prompt string, validate func(string) er
 }
 
 // TODO: 2026-04-14: come back to update this. Somewhat clunky.
-func printIssue(issue *models.Issue) error {
+func printIssue(issue *models.Issue, logs []models.LogEntry) error {
 	if issue == nil {
 		return nil
 	}
 
-	//str := fmt.Sprintf("%t", issue.Active)
+	fmt.Printf(`
+Issue #%d
+──────────────────────────────────────────
+Title:        %s
+Description:  %s
+External Ref: %s
 
-	fmt.Println("-------------------------")
-	fmt.Printf("ID:                 %d\n", issue.Internal_ID)
-	fmt.Printf("Title:              %s\n", issue.Title)
-	fmt.Printf("External Reference: %s\n", deref(issue.External_Ref, "null"))
-	fmt.Printf("Description:        %s\n", issue.Description)
-	fmt.Printf("Active Status:      %t\n", issue.Active)
-	fmt.Printf("Progrss:            %s\n", issue.Progress.String())
-	fmt.Println("-------------------------")
+Active:       %t
+Progress:     %s
+
+Logs:
+`,
+		issue.Internal_ID,
+		issue.Title,
+		issue.Description,
+		*issue.External_Ref,
+		issue.Active,
+		issue.Progress.String(),
+	)
+
+	for _, log := range logs {
+		fmt.Printf("  • %s  %s\n", log.Timestamp, log.Entry)
+	}
 
 	return nil
 }
-
-func simplePrintIssue(issue *models.Issue, issueService IssueServiceInterface) error {
-	if issue == nil {
+func simplePrintIssue(issues []models.Issue, issueService IssueServiceInterface) error {
+	if issues == nil {
 		return nil
 	}
 
-	fmt.Println(simplePrintString(issue, issueService))
+	// Header
+	fmt.Printf("%-4s %-4s %-17s %-12s %-30s\n",
+		"ID", "ST", "CREATED", "EXT REF", "TITLE",
+	)
+	fmt.Println("──── ──── ───────────────── ──────────── ─────────────────────────────")
+
+	for _, issue := range issues {
+		simplePrintString(&issue, issueService)
+	}
 	return nil
 }
 
-func simplePrintString(i *models.Issue, issueService IssueServiceInterface) string {
+func simplePrintString(i *models.Issue, issueService IssueServiceInterface) {
 	logs, err := issueService.GetLogsFromIssue(int(i.Internal_ID))
-	if err != nil {
-		return fmt.Sprint(err)
+	if err != nil || len(logs) == 0 {
+		return
 	}
+
 	created := logs[0].Timestamp
+	extRef := formatExtRef(i.External_Ref)
 
-	ext_ref_print := deref(i.External_Ref, "null")
-
-	return fmt.Sprintf(
-		"    -%d-     %s  | %s | %s | %s ",
+	fmt.Printf(" "+"%-4d %-4s %-17s %-12s %-30s\n",
 		i.Internal_ID,
 		progressSymbol(i.Progress),
 		created,
-		layoutDistancePrint(ext_ref_print, models.EXTERNAL_MAX),
-		layoutDistancePrint(i.Title, models.TITLE_MAX),
+		extRef,
+		truncate(i.Title, 30),
 	)
 }
 
-func deref(s *string, fallback string) string {
-	if s == nil {
-		return fallback
+func formatExtRef(ref *string) string {
+	if ref == nil || *ref == "" || *ref == "null" {
+		return "—"
 	}
-	return *s
+	return *ref
 }
-func layoutDistancePrint(param string, max int) string {
-	dist_param := max - len(param)
-	distance := strings.Repeat(" ", dist_param)
 
-	return param + distance
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max-3] + "..."
 }
 
 func progressSymbol(p models.ProgressStatus) string {

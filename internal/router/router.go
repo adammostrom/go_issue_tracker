@@ -2,6 +2,7 @@ package router
 
 import (
 	"encoding/json"
+	"fmt"
 	"issuetracker/internal/models"
 	"log"
 	"net/http"
@@ -121,9 +122,25 @@ func (s *Router) getSingleIssueHandler(w http.ResponseWriter, r *http.Request) {
 
 // TODO: 2026-04-06: Find a way to not duplicate these functions.
 func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
+	var filter models.IssueFilter
 
 	statusStr := r.URL.Query().Get("status")
-	progressStr := r.URL.Query().Get("progress")
+	progressStr := strings.TrimSpace(r.URL.Query().Get("progress"))
+
+	fmt.Printf("progressStr: '%s' (len=%d)\n", progressStr, len(progressStr))
+
+	if progressStr == "" {
+		filter.Progress = nil
+	} else {
+		parsed_progress, err := models.ParseProgressStatus(progressStr)
+		if err != nil {
+			fmt.Print("ERROR")
+			http.Error(w, "invalid progress\n", http.StatusBadRequest)
+			return
+		}
+		filter.Progress = &parsed_progress
+
+	}
 
 	parsed, err := models.ParseStatus(statusStr)
 	if err != nil {
@@ -131,14 +148,6 @@ func (s *Router) getIssuesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsed_progress, err := models.ParseProgressStatus(progressStr)
-	if err != nil {
-		http.Error(w, "invalid progress\n", http.StatusBadRequest)
-		return
-	}
-
-	var filter models.IssueFilter
-	filter.Progress = &parsed_progress
 	filter.Active = parsed
 
 	issues, err := s.issueService.GetAllIssues(filter)

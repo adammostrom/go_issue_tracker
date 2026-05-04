@@ -39,7 +39,8 @@
     [X] - In server
     [X] - In database_layer
 
-[ ] - Add proper validation for getting an issue that doesnt exist (handle it). 
+[X] - Add proper validation for getting an issue that doesnt exist (handle it). 
+
 [ ] - Add a VIEWS in SQL
     [ ] - for GET all
     [ ] - for GET one

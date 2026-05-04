@@ -101,6 +101,6 @@ func ParseProgressStatus(s string) (ProgressStatus, error) {
 	case "completed":
 		return Finished, nil
 	default:
-		return -1, fmt.Errorf("invalid status: %s (valid: idle, started, completed)", s)
+		return -1, fmt.Errorf("invalid progress: %s (valid: idle, started, completed)", s)
 	}
 }

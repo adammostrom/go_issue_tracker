@@ -150,7 +150,12 @@ func (s *CommandLine) getIssueCmd(args []string) error {
 	if err != nil || issue == nil {
 		return err
 	}
-	printIssue(issue)
+	logs, err := s.issueService.GetLogsFromIssue(id)
+	if err != nil {
+		return err
+	}
+	printIssue(issue, logs)
+
 	return nil
 }
 
@@ -211,9 +216,7 @@ func (s *CommandLine) getAllCmd(args []string) error {
 		fmt.Println("No issues found")
 		return nil
 	}
-	for _, issue := range issues {
-		simplePrintIssue(&issue, s.issueService)
-	}
+	simplePrintIssue(issues, s.issueService)
 	return nil
 }
 
@@ -251,7 +254,7 @@ func (s *CommandLine) createCmd(args []string) error {
 		return err
 	}
 	fmt.Println("Issue successfully created")
-	printIssue(issue)
+	printIssue(issue, nil)
 	return nil
 
 }
