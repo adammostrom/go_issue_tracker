@@ -53,3 +53,9 @@ type UpdateIssueRequest struct {
 	Active       *bool           `json:"active"`
 	Progress     *ProgressStatus `json:"progress"`
 }
+
+type IssueFilter struct {
+	Active   *bool
+	Progress *ProgressStatus
+	Created  *string
+}

@@ -27,11 +27,11 @@ func (s *CommandLine) setStatusCmd(args []string, status bool) error {
 	}
 
 	if err := s.issueService.PatchIssue(id, req); err != nil {
-		fmt.Printf("Failed to update issue with id: %d", id)
+		fmt.Printf("Failed to update issue with id: %d\n", id)
 		return err
 	}
 
-	fmt.Printf("Status updated successfully to: %t", status)
+	fmt.Printf("Status updated successfully to: %t\n", status)
 	return nil
 }
 
@@ -46,6 +46,7 @@ func (s *CommandLine) modifyCmd(args []string) error {
 
 	err = s.modifyIssueHelper(req)
 	if err != nil {
+		fmt.Println("Error:", err)
 		return err
 	}
 
@@ -61,7 +62,7 @@ func (s *CommandLine) deleteCmd(args []string) error {
 	}
 	err = s.issueService.DeleteIssue(id)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error:", err)
 		return err
 	}
 	fmt.Println("Issue deleted successfully")
@@ -76,6 +77,7 @@ func (s *CommandLine) getLogCmd(args []string) error {
 
 	logs, err := s.issueService.GetLogsFromIssue(id)
 	if err != nil {
+		fmt.Println("Error:", err)
 		return err
 	}
 	if len(logs) == 0 {
@@ -105,6 +107,7 @@ func (s *CommandLine) setProgressCmd(args []string) error {
 
 	status, err := models.ParseProgressStatus(statusStr)
 	if err != nil {
+		fmt.Println("Error:", err)
 		return err
 	}
 
@@ -112,6 +115,7 @@ func (s *CommandLine) setProgressCmd(args []string) error {
 		req.Progress = &status
 		err = s.issueService.PatchIssue(id, *req)
 		if err != nil {
+			fmt.Println("Error:", err)
 			return err
 		}
 	} else {
@@ -132,10 +136,37 @@ func (s *CommandLine) deleteLogsCmd(args []string) error {
 	}
 	err = s.issueService.DeleteLogsFromIssue(id)
 	if err != nil {
+		fmt.Println("Error:", err)
 		return err
 	}
 	fmt.Println("Logs erased successfully")
 	return nil
+}
+
+func (s *CommandLine) getIssueREFCmd(args []string) error {
+	if len(args) < 1 {
+		fmt.Println("Expected reference as arguments to command!")
+		return fmt.Errorf("No reference given")
+	}
+
+	reference := args[0]
+	if len(reference) > 10 {
+		fmt.Println("Reference limit is 10 characters")
+		return fmt.Errorf("Bad reference")
+	}
+	issue, err := s.issueService.GetIssueByRef(&reference)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return err
+	}
+	logs, err := s.issueService.GetLogsFromIssue(int(issue.Internal_ID))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return err
+	}
+	printIssue(issue, logs)
+	return nil
+
 }
 
 // Get one issue
@@ -148,35 +179,78 @@ func (s *CommandLine) getIssueCmd(args []string) error {
 
 	issue, err := s.issueService.GetIssueByID(id)
 	if err != nil || issue == nil {
+		fmt.Println("Error:", err)
 		return err
 	}
-	printIssue(issue)
+	logs, err := s.issueService.GetLogsFromIssue(id)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return err
+	}
+	printIssue(issue, logs)
+
 	return nil
 }
 
-// Get all issues
+func parseArguments(args []string) (models.IssueFilter, error) {
+	var f models.IssueFilter
+
+	// with no given, return all issues
+	if len(args) < 1 {
+		return f, nil
+	}
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "status":
+			if 1+i >= len(args) {
+				return f, fmt.Errorf("status requires a value")
+			}
+			active_status, err := models.ParseStatus(args[i+1])
+			if err != nil {
+				return f, err
+			}
+			f.Active = active_status
+			i++
+
+		case "progress":
+			if 1+i >= len(args) {
+				return f, fmt.Errorf("progress requires a value")
+			}
+			progress, err := models.ParseProgressStatus(args[i+1])
+			if err != nil {
+				return f, err
+			}
+			f.Progress = &progress
+			i++
+		default:
+			return f, fmt.Errorf("unknown argument: %s", args[i])
+		}
+	}
+	return f, nil
+}
+
+// Get all issues, regardless of status or progress
 func (s *CommandLine) getAllCmd(args []string) error {
 
-	status := models.StatusDefault
+	//status := models.StatusDefault
 
-	if len(args) > 0 {
-		parsed, err := models.ParseStatus(args[0])
-		if err != nil {
-			return err
-		}
-		status = parsed
-	}
-	issues, err := s.issueService.GetAllIssues(status)
+	filter, err := parseArguments(args)
 	if err != nil {
+		fmt.Println("Error: ", err)
+		return err
+	}
+
+	issues, err := s.issueService.GetAllIssues(filter)
+	if err != nil {
+		fmt.Println("Error:", err)
 		return err
 	}
 	if len(issues) == 0 {
 		fmt.Println("No issues found")
 		return nil
 	}
-	for _, issue := range issues {
-		simplePrintIssue(&issue, s.issueService)
-	}
+	simplePrintIssue(issues, s.issueService)
 	return nil
 }
 
@@ -188,12 +262,14 @@ func (s *CommandLine) createCmd(args []string) error {
 
 	title, err := readValidated(reader, "Title: ", models.ValidateTitle, false)
 	if err != nil {
+		fmt.Println("Error:", err)
 		return err
 	}
 	issue_request.Title = title
 
 	externalRef, err := readValidated(reader, "External Reference: ", models.ValidateExternalRefWrapper, true)
 	if err != nil {
+		fmt.Println("Error:", err)
 		return err
 	}
 	if externalRef == "" {
@@ -204,6 +280,7 @@ func (s *CommandLine) createCmd(args []string) error {
 
 	description, err := readValidated(reader, "Description: ", models.ValidateDescription, false)
 	if err != nil {
+		fmt.Println("Error:", err)
 		return err
 	}
 	issue_request.Description = description
@@ -214,7 +291,7 @@ func (s *CommandLine) createCmd(args []string) error {
 		return err
 	}
 	fmt.Println("Issue successfully created")
-	printIssue(issue)
+	printIssue(issue, nil)
 	return nil
 
 }
@@ -256,3 +333,5 @@ func getIdFromInput(args []string) (int, error) {
 	}
 	return id, nil
 }
+
+//func interpretError(err )
