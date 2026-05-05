@@ -24,13 +24,11 @@ func main() {
 	var err error
 
 	// No need for INIT
-	db, err = database.OpenDB()
+	db, err = database.Open()
 	if err != nil {
-		db, err = database.InitDB()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+		fmt.Println(err)
+		return
+
 	}
 	defer db.Close()
 

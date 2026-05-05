@@ -2,106 +2,68 @@ package database
 
 import (
 	"database/sql"
-	"embed"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const SCHEMA_FILE = "internal/database/schema_issues.sql"
-const DB_FILE_NAME = "issuetracker_sqlite3.db"
+const schemaFile = "internal/database/schema_issues.sql"
+const dbFileName = "issuedb.db"
 
-// SQLITE
-
-func panic_mode(err error) {
+func Open() (*sql.DB, error) {
+	dbPath, firstRun, err := resolveDBPath()
 	if err != nil {
-		panic(err)
-	}
-}
-
-// Basically Run the DB
-func OpenDB() (*sql.DB, error) {
-	dbDir := getBaseDirectoryOfExecutable()
-	if dbDir == "" {
-		log.Fatal("Could not retrieve base directory")
+		return nil, err
 	}
 
-	dbPath := filepath.Join(dbDir, DB_FILE_NAME)
-
-	// check existence
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("database not initialized")
-	}
-
-	return sql.Open("sqlite3", dbPath)
-}
-
-//go:embed schema_issues.sql
-var schemaFS embed.FS
-
-// Loads and executes the schema
-func InitSchema(db *sql.DB) error {
-	// Use schemaFS to embed the schema into the binary
-	schema, err := schemaFS.ReadFile(SCHEMA_FILE)
-	panic_mode(err)
-
-	_, err = db.Exec(string(schema))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("Schema: %s initiated.\n", SCHEMA_FILE)
-	return err
-}
-
-// Should initiate the DB only if it doesnt exist
-// Check if the issue.db exists, if not, load and execute the schema
-// via the InitSchema function
-func InitDB() (*sql.DB, error) {
-
-	dbDir := getBaseDirectoryOfExecutable()
-	if dbDir == "" {
-		log.Fatal("Could not retrieve base directory")
-	}
-
-	if err := os.Mkdir(dbDir, 0755); err != nil {
-		log.Fatal(err)
-	}
-	dbPath := filepath.Join(dbDir, "issuetracker_sqlite3.db")
-
-	// todo: add config for swapping out the database
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
 	}
 
-	err = InitSchema(db)
-	if err != nil {
-		return nil, err
+	if firstRun {
+		if err := initSchema(db); err != nil {
+			db.Close()
+			return nil, err
+		}
 	}
 
-	fmt.Println("Database initialized")
 	return db, nil
 }
 
-func DBExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-func getBaseDirectoryOfExecutable() string {
-	// Get the base directory of the executable
+func resolveDBPath() (path string, firstRun bool, err error) {
 	exePath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		return "", false, err
 	}
+
 	exePath, _ = filepath.EvalSymlinks(exePath)
 	baseDir := filepath.Dir(exePath)
 
-	// Create the data directory
 	dataDir := filepath.Join(baseDir, ".issuetracker")
-	return dataDir
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return "", false, err
+	}
+
+	dbPath := filepath.Join(dataDir, dbFileName)
+
+	_, err = os.Stat(dbPath)
+	firstRun = os.IsNotExist(err)
+
+	return dbPath, firstRun, nil
+}
+
+func initSchema(db *sql.DB) error {
+	schema, err := os.ReadFile(schemaFile)
+	if err != nil {
+		return err
+	}
+
+	if _, err := db.Exec(string(schema)); err != nil {
+		return fmt.Errorf("applying schema: %w", err)
+	}
+
+	return nil
 }
