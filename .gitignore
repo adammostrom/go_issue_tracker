@@ -4,3 +4,5 @@ issues.db
 /tests
 .issuetracker
 issuetracker
+go.mod
+go.sum
