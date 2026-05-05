@@ -13,17 +13,14 @@ import (
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
-	//_ "github.com/lib/pq" // Import pq for PostgreSQL driver
 )
 
-// Main does only one job: start the server and connect routes to handlers.
 // Only does initialization: database connection, routing, and starting the HTTP server.
 func main() {
 
 	var db *sql.DB
 	var err error
 
-	// No need for INIT
 	db, err = database.Open()
 	if err != nil {
 		fmt.Println(err)
@@ -44,6 +41,7 @@ func main() {
 	cmds := cli.BuildCommands()
 
 	if len(os.Args) < 2 {
+
 		cli.PrintCommandUsage(cmds)
 		return
 	}
@@ -58,20 +56,48 @@ func main() {
 
 }
 
+func printStart() {
+	fmt.Println("")
+	fmt.Println("Example usage of start flags:")
+	fmt.Println("issuetracker start")
+	fmt.Println("issuetracker start --port 9090")
+	fmt.Println("issuetracker start --bind 0.0.0.0 --port 8080")
+	fmt.Println("issuetracker start --base-url https://issues.example.com")
+	fmt.Println("")
+
+}
+
 // Start the HTTP server
 func startCmd(args []string, issueService *services.IssueService) {
+
+	printStart()
+
 	fs := flag.NewFlagSet("start", flag.ExitOnError)
 
+	bindAddr := fs.String("bind", "127.0.0.1", "Address to bind HTTP server to")
+	port := fs.Int("port", 8080, "Port to run HTTP server on")
+	baseURL := fs.String("base-url", "", "public base URL (optional)")
 	// Create a router to delegate requests to the server
-	r := router.NewRouter(issueService)
 
 	fs.Parse(args)
+
+	// Build listen address
+	addr := fmt.Sprintf("%s:%d", *bindAddr, *port)
+
+	//If base URL not set, derive it
+
+	effectiveBaseURL := *baseURL
+	if effectiveBaseURL == "" {
+		effectiveBaseURL = fmt.Sprintf("http://%s", addr)
+	}
+
+	r := router.NewRouter(issueService)
 
 	// set up the HTTP server
 	mux := http.NewServeMux()
 
 	server := &http.Server{
-		Addr:    ":8080", // Add configuration if want to change ports etc.
+		Addr:    addr, // Add configuration if want to change ports etc.
 		Handler: mux,
 	}
 
@@ -79,12 +105,14 @@ func startCmd(args []string, issueService *services.IssueService) {
 	mux.HandleFunc("/issues", r.AllRouting)  // for /issues exact (list, create)
 	mux.HandleFunc("/issues/", r.AllRouting) // for /issues/{id} (single issue)
 
-	log.Println("Connected successfully — server starting...")
-
 	// Serve the HTML frontend
 	mux.Handle("/", http.FileServer(http.Dir("./static")))
 
-	// Keep server running on port 8080
-	log.Println("Server running at http://localhost:8080")
-	log.Fatal(server.ListenAndServe())
+	log.Println("Issuetracker server starting")
+	log.Printf("Listening on %s", addr)
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
+
 }

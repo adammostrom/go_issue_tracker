@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +10,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const schemaFile = "internal/database/schema_issues.sql"
+//go:embed schema_issues.sql
+var schemaFS embed.FS
+
+// const schemaFile = "internal/database/schema_issues.sql"
 const dbFileName = "issuedb.db"
 
 func Open() (*sql.DB, error) {
@@ -56,9 +60,9 @@ func resolveDBPath() (path string, firstRun bool, err error) {
 }
 
 func initSchema(db *sql.DB) error {
-	schema, err := os.ReadFile(schemaFile)
+	schema, err := schemaFS.ReadFile("schema_issues.sql")
 	if err != nil {
-		return err
+		return fmt.Errorf("read embedded schema: %w", err)
 	}
 
 	if _, err := db.Exec(string(schema)); err != nil {
