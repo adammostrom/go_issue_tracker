@@ -1,4 +1,4 @@
-Issuetracker
+# Issuetracker
 
 Issuetracker is written entirely in Go and is designed to be simple to use. It can run both via a command line interface via the command `issuetracker <command>` or as a backend service for a web page: `ìssuetracker start`. 
 
@@ -7,12 +7,14 @@ Database: SQLite
 
 The idea is to contain it as follows:
 
+```
 your_project/
 └── external/
     └── issuetracker/
         ├── issuetracker.bin          
         └── .issuetracker/
             └── issuetracker_sqlite3.db
+```
 
 ## How to run
 Make sure Go is installed.
@@ -26,8 +28,10 @@ issuetracker is distributed as a single binary.
 
 On first run, it creates the following directory next to the executable:
 
+```
 .issuetracker/
 └── issuedb.db
+```
 
 This SQLite database stores all project issues.
 The directory is created automatically and should not be committed to version control
