@@ -103,7 +103,7 @@ Description:  Validate the authentication handler and make sure to write some te
 External Ref: VAL22
 
 Active:       true
-Progress:     idle
+Progress:     started
 
 Logs:
   • 2026-05-05 14:41  Issue created
